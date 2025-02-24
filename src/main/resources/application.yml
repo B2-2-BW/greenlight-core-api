@@ -1,0 +1,41 @@
+spring.application.name: greenlight-prototype-core-api
+spring.profiles.active: local
+
+server:
+  error:
+    include-message: always
+
+logging:
+  config: classpath:logback/logback-${spring.profiles.active}.xml
+  level:
+    root: INFO
+    com.winten: DEBUG
+    org.springframework.data.redis: DEBUG
+
+---
+spring.config.activate.on-profile: local
+spring:
+  data:
+    redis:
+      host: ${STORAGE_REDIS_HOST}
+      port: ${STORAGE_REDIS_PORT}
+      password: ${STORAGE_REDIS_PASSWORD}
+
+---
+spring.config.activate.on-profile: dev
+spring:
+  data:
+    redis:
+      host: ${STORAGE_REDIS_HOST}
+      port: ${STORAGE_REDIS_PORT}
+      password: ${STORAGE_REDIS_PASSWORD}
+
+
+---
+spring.config.activate.on-profile: live
+spring:
+  data:
+    redis:
+      host: ${STORAGE_REDIS_HOST}
+      port: ${STORAGE_REDIS_PORT}
+      password: ${STORAGE_REDIS_PASSWORD}
