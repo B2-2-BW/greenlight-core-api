@@ -1,4 +1,4 @@
-package com.winten.greenlight.prototype.core.domain.customer;
+package com.winten.greenlight.prototype.core.api.controller.customer;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,8 +9,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Customer {
+public class CustomerDeletionResponseDto {
     private String customerId;
-    private double score;
-    private WaitingPhase waitingPhase;
 }

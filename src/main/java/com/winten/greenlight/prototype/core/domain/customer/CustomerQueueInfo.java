@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Customer {
-    private String customerId;
-    private double score;
-    private WaitingPhase waitingPhase;
+public class CustomerQueueInfo {
+    private Long position;
+    private Long queueSize;
+    private Long estimatedWaitTime;
 }

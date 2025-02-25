@@ -6,6 +6,8 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -13,19 +15,27 @@ public class Log implements Serializable {
     private LocalDateTime timestamp;
     private String level;
     private String message;
-    private LogContext context;
+    private SystemType systemType;
+    private String userId;
+    private String userIp;
 
+    public Log(LocalDateTime timestamp, LogLevel level, String message, SystemType systemType, String userId, String userIp) {
+        this.timestamp = timestamp;
+        this.level = level.name();
+        this.message = message;
+        this.systemType = systemType;
+        this.userId = userId;
+        this.userIp = userIp;
+    }
 
-    public static Log of(LogLevel level, final String message, final String userId, final String userIp) {
-        return new Log(LocalDateTime.now(), level.name(), message, LogContext.from(userId, userIp));
-    }
-    public static Log info(final String message, final String userId, final String userIp) {
-        return Log.of(LogLevel.INFO, message, userId, userIp);
-    }
-    public static Log warn(final String message, final String userId, final String userIp) {
-        return Log.of(LogLevel.WARN, message, userId, userIp);
-    }
-    public static Log error(final String message, final String userId, final String userIp) {
-        return Log.of(LogLevel.ERROR, message, userId, userIp);
+    public Map<String, String> toMap() {
+        final Map<String, String> map = new HashMap<>();
+        map.put("timestamp", timestamp.toString());
+        map.put("level", level);
+        map.put("message", message);
+        map.put("systemType", systemType.toString());
+        map.put("userId", userId);
+        map.put("userIp", userIp);
+        return map;
     }
 }

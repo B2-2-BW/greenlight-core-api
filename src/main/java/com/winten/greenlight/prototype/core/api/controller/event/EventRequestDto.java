@@ -5,9 +5,11 @@ import lombok.Data;
 
 @Data
 public class EventRequestDto {
-    private String eventId;
+    private String eventName;
 
     public Event toEvent() {
-        return new Event(eventId, null, null);
+        Event event = new Event();
+        event.setEventName(eventName);
+        return event;
     }
 }

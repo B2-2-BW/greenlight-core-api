@@ -2,6 +2,7 @@ spring.application.name: greenlight-prototype-core-api
 spring.profiles.active: local
 
 server:
+  port: 8080
   error:
     include-message: always
 

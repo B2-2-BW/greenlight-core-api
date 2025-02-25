@@ -1,12 +1,12 @@
 package com.winten.greenlight.prototype.core.domain.customer;
 
-public enum QueueType {
+public enum WaitingPhase {
     WAITING("proto-queue:waiting"),
     READY("proto-queue:ready");
 
     private final String queueName;
 
-    QueueType(String queueName) {
+    WaitingPhase(String queueName) {
         this.queueName = queueName;
     }
 
