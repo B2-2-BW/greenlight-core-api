@@ -40,3 +40,9 @@ spring:
       host: ${STORAGE_REDIS_HOST}
       port: ${STORAGE_REDIS_PORT}
       password: ${STORAGE_REDIS_PASSWORD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus"
