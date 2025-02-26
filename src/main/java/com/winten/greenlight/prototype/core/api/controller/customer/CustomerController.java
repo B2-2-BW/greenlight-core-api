@@ -2,7 +2,6 @@ package com.winten.greenlight.prototype.core.api.controller.customer;
 
 import com.winten.greenlight.prototype.core.domain.customer.Customer;
 import com.winten.greenlight.prototype.core.domain.customer.CustomerService;
-import com.winten.greenlight.prototype.core.domain.customer.CustomerQueueInfo;
 import com.winten.greenlight.prototype.core.domain.event.CachedEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +35,7 @@ public class CustomerController {
 
     // TODO [사용자] 이벤트 대기상태 조회 API https://github.com/B2-2-BW/greenlight-prototype-core-api/issues/3
     @GetMapping("{customerId}/status")
-    public Mono<ResponseEntity<CustomerQueueInfo>> getCustomerQueueInfo(@BindParam final CustomerRequestDto requestDto) {
+    public Mono<ResponseEntity<CustomerQueueInfoResponseDto>> getCustomerQueueInfo(@BindParam final CustomerRequestDto requestDto) {
         // customerId는 eventName:tsid 형식으로 생성됨. 예시. event-live:ABC123DEF456
         // redis key는 customerId로 바로 조회 가능
         // CustomerStatus 조회
