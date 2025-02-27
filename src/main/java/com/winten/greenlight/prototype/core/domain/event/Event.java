@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -18,6 +19,8 @@ public class Event implements Serializable {
     private String eventType;
     private String eventUrl;
     private Integer queueBackpressure;
+    private LocalDateTime eventStartTime;
+    private LocalDateTime eventEndTime;
 
     public Event(final EventEntity entity) {
         this.eventName = entity.getEventName();
@@ -25,5 +28,7 @@ public class Event implements Serializable {
         this.eventType = entity.getEventType();
         this.eventUrl = entity.getEventUrl();
         this.queueBackpressure = entity.getQueueBackpressure();
+        this.eventStartTime = entity.getEventStartTime();
+        this.eventEndTime = entity.getEventEndTime();
     }
 }
