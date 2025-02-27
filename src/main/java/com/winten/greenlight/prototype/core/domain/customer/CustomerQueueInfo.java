@@ -10,7 +10,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CustomerQueueInfo {
+    private String customerId;
     private Long position;
     private Long queueSize;
     private Long estimatedWaitTime;
+    private WaitingPhase waitingPhase;
 }
