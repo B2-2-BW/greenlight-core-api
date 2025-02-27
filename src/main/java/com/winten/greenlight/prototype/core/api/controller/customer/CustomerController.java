@@ -5,6 +5,7 @@ import com.winten.greenlight.prototype.core.domain.customer.CustomerQueueInfo;
 import com.winten.greenlight.prototype.core.domain.customer.CustomerService;
 import com.winten.greenlight.prototype.core.domain.event.CachedEventService;
 import com.winten.greenlight.prototype.core.domain.event.Event;
+import com.winten.greenlight.prototype.core.support.error.CoreException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +44,7 @@ public class CustomerController {
             .doOnSuccess(response -> log.info("Customer created successfully: {}", response))
             .doOnError(error -> log.error("Error while creating customer", error))
             .onErrorResume(error -> {
-                if (error instanceof IllegalArgumentException) {
+                if (error instanceof CoreException) {
                     return Mono.just(ResponseEntity
                             .badRequest()
                             .body(new CustomerRegistrationResponseDto(null, 0, null))
