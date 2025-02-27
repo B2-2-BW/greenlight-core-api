@@ -5,6 +5,7 @@ import com.winten.greenlight.prototype.core.domain.customer.CustomerService;
 import com.winten.greenlight.prototype.core.domain.event.CachedEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -43,7 +44,23 @@ public class CustomerController {
         // Ready 상태인지 조회
         // 없으면 에러
         // 성공시 HttpStatus 200 OK 반환
-        return null;
+
+        Customer customer = new Customer();
+        customer.setCustomerId(requestDto.getCustomerId());
+
+        return customerService.getCustomerQueueInfo(customer)
+            .map(entity -> {
+                boolean isValid = entity.getWaitingPhase() != null;
+                return CustomerQueueInfoResponseDto.builder()
+                    .customerId(entity.getCustomerId())
+                    .position(isValid ? (long) entity.getScore() : null)
+                    .queueSize(entity.getQueueSize()) // queueSize를 직접 가져옴
+                    .estimatedWaitTime(isValid ? (long) (entity.getScore() * 60) : 0L)
+                    .waitingPhase(entity.getWaitingPhase())
+                    .build();
+            })
+            .map(ResponseEntity::ok)
+            .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()));
     }
 
     // TODO 현재 고객을 대기열에서 제거
