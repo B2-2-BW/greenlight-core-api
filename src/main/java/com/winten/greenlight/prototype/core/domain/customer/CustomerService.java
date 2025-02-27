@@ -17,14 +17,15 @@ public class CustomerService {
     }
 
 
-    public Mono<CustomerZSetEntity> getCustomerQueueInfo(Customer customer) {
+    public Mono<CustomerQueueInfo> getCustomerQueueInfo(Customer customer) {
         return customerRepository.getCustomerStatus(customer)
-            .flatMap(entity -> {
-                if (entity.getCustomerId() == null || entity.getWaitingPhase() == null) {
-                    return Mono.empty(); // WAITING 또는 READY 상태가 아닌 경우
+            .map(info -> {
+                if (info.getPosition() != null && info.getQueueSize() != null) {
+                    info.setEstimatedWaitTime(info.getPosition() * 60); // 예시 계산
                 }
-                return Mono.just(entity);
-            });
+                return info;
+            })
+            .filter(info -> info.getCustomerId() != null && info.getWaitingPhase() != null);
     }
 
     public Mono<Customer> deleteCustomer(Customer customer) {

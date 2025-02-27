@@ -49,16 +49,13 @@ public class CustomerController {
         customer.setCustomerId(requestDto.getCustomerId());
 
         return customerService.getCustomerQueueInfo(customer)
-            .map(entity -> {
-                boolean isValid = entity.getWaitingPhase() != null;
-                return CustomerQueueInfoResponseDto.builder()
-                    .customerId(entity.getCustomerId())
-                    .position(isValid ? (long) entity.getScore() : null)
-                    .queueSize(entity.getQueueSize()) // queueSize를 직접 가져옴
-                    .estimatedWaitTime(isValid ? (long) (entity.getScore() * 60) : 0L)
-                    .waitingPhase(entity.getWaitingPhase())
-                    .build();
-            })
+            .map(info -> CustomerQueueInfoResponseDto.builder()
+                .customerId(info.getCustomerId())
+                .position(info.getPosition())
+                .queueSize(info.getQueueSize())
+                .estimatedWaitTime(info.getEstimatedWaitTime())
+                .waitingPhase(info.getWaitingPhase())
+                .build())
             .map(ResponseEntity::ok)
             .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()));
     }

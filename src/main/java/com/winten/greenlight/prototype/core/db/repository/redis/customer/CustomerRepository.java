@@ -18,29 +18,28 @@ public class CustomerRepository {
     public Mono<Customer> createCustomer(Customer customer) {
         return null;
     }
-
-    public Mono<CustomerZSetEntity> getCustomerStatus(Customer customer) {
+    public Mono<CustomerQueueInfo> getCustomerStatus(Customer customer) {
         String customerId = customer.getCustomerId();
-        Mono<CustomerZSetEntity> waitingCheck = fetchFromQueue(WaitingPhase.WAITING, customerId);
-        Mono<CustomerZSetEntity> readyCheck = fetchFromQueue(WaitingPhase.READY, customerId);
+        Mono<CustomerQueueInfo> waitingCheck = fetchFromQueue(WaitingPhase.WAITING, customerId);
+        Mono<CustomerQueueInfo> readyCheck = fetchFromQueue(WaitingPhase.READY, customerId);
 
-        return Mono.zip(waitingCheck.switchIfEmpty(Mono.just(new CustomerZSetEntity())),
-                readyCheck.switchIfEmpty(Mono.just(new CustomerZSetEntity())))
+        return Mono.zip(waitingCheck.switchIfEmpty(Mono.just(new CustomerQueueInfo())),
+                readyCheck.switchIfEmpty(Mono.just(new CustomerQueueInfo())))
             .map(tuple -> {
-                CustomerZSetEntity waitingEntity = tuple.getT1();
-                CustomerZSetEntity readyEntity = tuple.getT2();
+                CustomerQueueInfo waitingEntity = tuple.getT1();
+                CustomerQueueInfo readyEntity = tuple.getT2();
 
                 if (waitingEntity.getCustomerId() != null && waitingEntity.getWaitingPhase() != null) {
                     return waitingEntity;
                 } else if (readyEntity.getCustomerId() != null && readyEntity.getWaitingPhase() != null) {
                     return readyEntity;
                 } else {
-                    return new CustomerZSetEntity(); // null 상태 반환
+                    return new CustomerQueueInfo();
                 }
             });
     }
 
-    private Mono<CustomerZSetEntity> fetchFromQueue(WaitingPhase phase, String customerId) {
+    private Mono<CustomerQueueInfo> fetchFromQueue(WaitingPhase phase, String customerId) {
         String queueName = phase.queueName();
         return Mono.zip(
             redisTemplate.opsForZSet().rank(queueName, customerId),  // 위치
@@ -48,12 +47,13 @@ public class CustomerRepository {
         ).map(tuple -> {
             Long position = tuple.getT1();
             Long queueSize = tuple.getT2();
-            CustomerZSetEntity entity = new CustomerZSetEntity();
-            entity.setCustomerId(position != null ? customerId : null);
-            entity.setWaitingPhase(position != null ? phase : null);
-            entity.setScore(position != null ? position.doubleValue() : 0.0); // position을 score로 저장
-            entity.setQueueSize(queueSize);
-            return entity;
-        }).switchIfEmpty(Mono.just(new CustomerZSetEntity()));
+            return CustomerQueueInfo.builder()
+                .customerId(position != null ? customerId : null)
+                .position(position)
+                .queueSize(queueSize)
+                .waitingPhase(position != null ? phase : null)
+                .estimatedWaitTime(null) // Service에서 계산
+                .build();
+        }).switchIfEmpty(Mono.just(new CustomerQueueInfo()));
     }
 }
