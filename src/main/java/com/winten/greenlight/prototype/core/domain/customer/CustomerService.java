@@ -12,7 +12,12 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
 
     public Mono<Customer> createCustomer(Customer customer, Event event) {
-        return null;
+        return Mono.defer(() -> {
+            customer.setCustomerId(event.getEventName()); // 이벤트 이름으로 Customer ID 설정
+            return customerRepository.createCustomer(customer);
+        });
+//                .doOnSuccess(result -> log.info("Customer created: {}", result))
+//                .doOnError(error -> log.error("Error creating customer", error));
     }
 
     public Mono<CustomerQueueInfo> getCustomerQueueInfo(Customer customer) {

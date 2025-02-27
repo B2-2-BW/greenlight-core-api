@@ -1,8 +1,10 @@
 package com.winten.greenlight.prototype.core.api.controller.customer;
 
 import com.winten.greenlight.prototype.core.domain.customer.Customer;
+import com.winten.greenlight.prototype.core.domain.customer.CustomerQueueInfo;
 import com.winten.greenlight.prototype.core.domain.customer.CustomerService;
 import com.winten.greenlight.prototype.core.domain.event.CachedEventService;
+import com.winten.greenlight.prototype.core.domain.event.Event;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,19 +20,27 @@ public class CustomerController {
     private final CachedEventService cachedEventService;
 
     // TODO [사용자] 이벤트 대기열 참가신청 API https://github.com/B2-2-BW/greenlight-prototype-core-api/issues/2
-    @PostMapping(value="")
+    @PostMapping("")
     public Mono<ResponseEntity<CustomerRegistrationResponseDto>> createCustomer(@RequestBody final CustomerRequestDto requestDto) {
-        long score = System.currentTimeMillis(); // score 채번은 선착순 순번을 최대한 보장하기 위해 최상단 고정
+        return Mono.defer(() -> {
+                    long score = System.currentTimeMillis(); // 선착순 보장을 위해 최상단에서 score 채번
+                    Customer customer = new Customer();
+                    customer.setScore(score);
 
-        // customerId는 eventName:tsid 형식으로 생성됨. 예시. event-live:ABC123DEF456
-        // redis key는 customerId로 바로 조회 가능
-        Customer customer = new Customer();
-        customer.setScore(score);
-        // cachedEventService에서 requestDto.eventId가 유효한지 검증
-        // Customer 조회
-        // CustomerStatus 조회
-        // 성공시 HttpStatus 201 CREATED 반환
-        return null;
+                    Event event = new Event();
+                    event.setEventName(requestDto.getEventName()); // 이벤트 객체 생성
+
+                    return customerService.createCustomer(customer, event)
+                            .map(responseCustomer -> ResponseEntity
+                                    .status(201) // 201 CREATED 반환
+                                    .body(new CustomerRegistrationResponseDto(
+                                            responseCustomer.getCustomerId(),
+                                            responseCustomer.getScore(),
+                                            new CustomerQueueInfo()
+                                    )));
+                })
+                .doOnSuccess(response -> log.info("Customer created successfully: {}", response))
+                .doOnError(error -> log.error("Error while creating customer", error));
     }
 
     // TODO [사용자] 이벤트 대기상태 조회 API https://github.com/B2-2-BW/greenlight-prototype-core-api/issues/3
