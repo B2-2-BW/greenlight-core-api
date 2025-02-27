@@ -2,7 +2,10 @@ package com.winten.greenlight.prototype.core.api.controller.customer;
 
 import com.winten.greenlight.prototype.core.domain.customer.Customer;
 import com.winten.greenlight.prototype.core.domain.customer.CustomerService;
+import com.winten.greenlight.prototype.core.domain.customer.WaitingPhase;
 import com.winten.greenlight.prototype.core.domain.event.CachedEventService;
+import com.winten.greenlight.prototype.core.support.error.CoreException;
+import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -19,7 +22,7 @@ public class CustomerController {
     private final CachedEventService cachedEventService;
 
     // TODO [사용자] 이벤트 대기열 참가신청 API https://github.com/B2-2-BW/greenlight-prototype-core-api/issues/2
-    @PostMapping(value="")
+    @PostMapping(value = "")
     public Mono<ResponseEntity<CustomerRegistrationResponseDto>> createCustomer(@RequestBody final CustomerRequestDto requestDto) {
         long score = System.currentTimeMillis(); // score 채번은 선착순 순번을 최대한 보장하기 위해 최상단 고정
 
@@ -67,6 +70,10 @@ public class CustomerController {
         // redis key는 customerId로 바로 조회 가능
         // 삭제 실패 시 CoreException throw
         // 성공시 HttpStatus 200 OK 반환
-        return null;
+
+        //처음에 조회해서 조회할 고객이 있어야만 delete하도록 하고싶음~
+        return customerService.deleteCustomer(new Customer(requestDto.getCustomerId(), 0L, WaitingPhase.WAITING))
+                .flatMap(customer -> Mono.just(ResponseEntity.ok(new CustomerDeletionResponseDto(customer.getCustomerId()))))
+                .switchIfEmpty(Mono.error(new CoreException(ErrorType.DEFAULT_ERROR, "삭제할 대상 없음"))); //삭제 실패 시 CoreException throw
     }
 }

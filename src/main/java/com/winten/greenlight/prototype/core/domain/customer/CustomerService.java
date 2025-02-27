@@ -29,7 +29,7 @@ public class CustomerService {
     }
 
     public Mono<Customer> deleteCustomer(Customer customer) {
-        return null;
+        return customerRepository.deleteCustomer(customer);
     }
 
 }

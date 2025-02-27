@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
 public class CustomerRepository {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
 
-    public CustomerRepository( ReactiveRedisTemplate<String, String> redisTemplate) {
+    public CustomerRepository(ReactiveRedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
@@ -38,6 +38,18 @@ public class CustomerRepository {
                 }
             });
     }
+
+    public Mono<Customer> deleteCustomer(Customer customer) {
+        return Mono.just(CustomerZSetEntity.of(customer))
+                .flatMap(entity -> redisTemplate.opsForZSet()
+                        //삭제처리
+                        .remove(customer.getWaitingPhase().queueName(), entity.getCustomerId())
+                        //삭제된 데이터 없는 경우 Mono.empty() 반환
+                        .flatMap(removedCount -> removedCount > 0 ? Mono.just(customer) : Mono.empty())
+                );
+    }
+
+}
 
     private Mono<CustomerQueueInfo> fetchFromQueue(WaitingPhase phase, String customerId) {
         String queueName = phase.queueName();
