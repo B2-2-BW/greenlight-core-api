@@ -67,8 +67,6 @@ public class CustomerRepository {
                 );
     }
 
-}
-
     private Mono<CustomerQueueInfo> fetchFromQueue(WaitingPhase phase, String customerId) {
         String queueName = phase.queueName();
         return Mono.zip(
