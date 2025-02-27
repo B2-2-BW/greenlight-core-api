@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -16,6 +18,8 @@ public class EventResponseDto {
     private String eventType;
     private String eventUrl;
     private Integer queueBackpressure;
+    private LocalDateTime eventStartTime;
+    private LocalDateTime eventEndTime;
 
     public EventResponseDto(Event event) {
         this.eventName = event.getEventName();
@@ -23,5 +27,7 @@ public class EventResponseDto {
         this.eventType = event.getEventType();
         this.eventUrl = event.getEventUrl();
         this.queueBackpressure = event.getQueueBackpressure();
+        this.eventStartTime = event.getEventStartTime();
+        this.eventEndTime = event.getEventEndTime();
     }
 }
