@@ -40,7 +40,19 @@ public class CustomerController {
                                     )));
                 })
                 .doOnSuccess(response -> log.info("Customer created successfully: {}", response))
-                .doOnError(error -> log.error("Error while creating customer", error));
+                .doOnError(error -> log.error("Error while creating customer", error))
+                .onErrorResume(error -> {
+                    if (error instanceof IllegalArgumentException) {
+                        return Mono.just(ResponseEntity
+                                .badRequest()
+                                .body(new CustomerRegistrationResponseDto(null, 0, null))
+                        );
+                    }
+                    return Mono.just(ResponseEntity
+                            .status(500)
+                            .body(new CustomerRegistrationResponseDto(null, 0, null))
+                    );
+                });
     }
 
     // TODO [사용자] 이벤트 대기상태 조회 API https://github.com/B2-2-BW/greenlight-prototype-core-api/issues/3
