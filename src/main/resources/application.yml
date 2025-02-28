@@ -70,6 +70,7 @@ logging:
     com.winten: ERROR
     com.winten.greenlight: ERROR
     org.springframework.data.redis: ERROR
-managemanet:
-  web:
-    base-path: ${GREENLIGHT_ACTUATOR_PATH}
+management:
+  endpoints:
+    web:
+      base-path: ${GREENLIGHT_ACTUATOR_PATH}
