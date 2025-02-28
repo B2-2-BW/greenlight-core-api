@@ -2,17 +2,9 @@ spring.application.name: greenlight-prototype-core-api
 spring.profiles.active: local
 
 server:
-  port: 8080
+  port: 18080
   error:
     include-message: always
-
-logging:
-  config: classpath:logback/logback-${spring.profiles.active}.xml
-  level:
-    root: INFO
-    com.winten: DEBUG
-    com.winten.greenlight: DEBUG
-    org.springframework.data.redis: DEBUG
 
 management:
   server:
@@ -38,6 +30,13 @@ management:
     prometheus:
       access: read_only
 
+logging:
+  config: classpath:logback/logback-${spring.profiles.active}.xml
+  level:
+    root: INFO
+    com.winten: DEBUG
+    com.winten.greenlight: DEBUG
+    org.springframework.data.redis: DEBUG
 
 ---
 spring.config.activate.on-profile: local
