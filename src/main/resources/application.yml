@@ -22,6 +22,10 @@ management:
       exposure:
         include: "info, health, prometheus"
 #        include: "*"
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   endpoint:
     info:
       access: unrestricted
