@@ -1,14 +1,14 @@
 package com.winten.greenlight.prototype.core.db.config;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.winten.greenlight.prototype.core.db.repository.redis.event.EventEntity;
-import com.winten.greenlight.prototype.core.domain.event.Event;
+import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.tracing.MicrometerTracing;
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisOperations;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
@@ -16,12 +16,20 @@ import org.springframework.data.redis.serializer.*;
 
 @Configuration
 public class CoreRedisConfig {
-
     @Bean
-    public LettuceConnectionFactory lettuceConnectionFactory(RedisProperties properties) {
+    public ClientResources clientResources(ObservationRegistry observationRegistry) {
+        return ClientResources.builder()
+                .tracing(new MicrometerTracing(observationRegistry, "redis-service"))
+                .build();
+    }
+    @Bean
+    public LettuceConnectionFactory lettuceConnectionFactory(RedisProperties properties, ClientResources clientResources) {
         var config = new RedisStandaloneConfiguration(properties.getHost(), properties.getPort());
         config.setPassword(properties.getPassword());
-        return new LettuceConnectionFactory(config);
+        var clientConfig = LettuceClientConfiguration.builder()
+                .clientResources(clientResources)
+                .build();
+        return new LettuceConnectionFactory(config, clientConfig);
     }
 
     @Bean

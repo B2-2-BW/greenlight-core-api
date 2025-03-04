@@ -4,9 +4,29 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} -%kvp- %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | [%thread] | %5p | %X{traceId} | %msg%n</pattern>
             <charset>utf8</charset>
         </encoder>
+    </appender>
+
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <!-- Replace with your Loki server URL -->
+            <url>http://43.202.94.66:43100/loki/api/v1/push</url>
+        </http>
+        <format>
+            <label>
+                <!-- Labels for filtering in Loki -->
+                <pattern>app=${name},host=${HOSTNAME},level=%level</pattern>
+                <readMarkers>true</readMarkers>
+            </label>
+            <message>
+                <!-- Structured JSON log message -->
+                <pattern>{ "level":"%level", "class":"%logger{36}", "thread":"%thread", "message": "%message", traceId="%X{traceId}"}</pattern>
+            </message>
+        </format>
+        <batchSize>10</batchSize>
+        <batchTimeoutMs>5000</batchTimeoutMs>
     </appender>
 
     <logger name="org.springframework" level="INFO"/>
@@ -14,5 +34,6 @@
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
+        <appender-ref ref="LOKI"/>
     </root>
 </configuration>

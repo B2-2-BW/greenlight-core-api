@@ -41,7 +41,9 @@ logging:
     com.winten: DEBUG
     com.winten.greenlight: DEBUG
     org.springframework.data.redis: DEBUG
-
+#  pattern:
+#    level: %5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]
+#  include-application-name: false
 ---
 spring.config.activate.on-profile: local
 spring:
@@ -50,6 +52,18 @@ spring:
       host: ${STORAGE_REDIS_HOST}
       port: ${STORAGE_REDIS_PORT}
       password: ${STORAGE_REDIS_PASSWORD}
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+    propagation:
+      consume: b3
+      produce: b3_multi
+    enabled: true
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL}
+
 
 ---
 spring.config.activate.on-profile: dev
@@ -78,3 +92,13 @@ management:
   endpoints:
     web:
       base-path: ${GREENLIGHT_ACTUATOR_PATH}
+  tracing:
+    sampling:
+      probability: 1.0
+    propagation:
+      consume: b3
+      produce: b3_multi
+    enabled: true
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL}
