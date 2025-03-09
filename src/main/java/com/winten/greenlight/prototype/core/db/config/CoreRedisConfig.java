@@ -38,9 +38,9 @@ public class CoreRedisConfig {
     }
 
     @Bean
-    public ReactiveRedisTemplate<String, EventEntity> reactiveEventRedisTemplate(LettuceConnectionFactory factory) {
+    public ReactiveRedisTemplate<String, EventEntity> reactiveEventRedisTemplate(LettuceConnectionFactory factory, ObjectMapper objectMapper) {
         RedisSerializer<String> keySerializer = new StringRedisSerializer();
-        RedisSerializer<EventEntity> valueSerializer = new Jackson2JsonRedisSerializer<>(EventEntity.class);
+        RedisSerializer<EventEntity> valueSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, EventEntity.class);
 
         RedisSerializationContext<String, EventEntity> serializationContext = RedisSerializationContext
                 .<String, EventEntity>newSerializationContext(keySerializer)
