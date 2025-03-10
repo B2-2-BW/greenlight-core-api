@@ -2,15 +2,44 @@ spring.application.name: greenlight-prototype-core-api
 spring.profiles.active: local
 
 server:
-  port: 8080
+  port: 18080
   error:
     include-message: always
+
+management:
+  server:
+    port: 18090
+  endpoints:
+#    access:
+#      default: none
+#    jmx:
+#      exposure:
+#        exclude: "*"
+#        include: info, health
+#        include: "*"
+    web:
+      base-path: /actuator
+      exposure:
+        include: "info, health, prometheus"
+#        include: "*"
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  endpoint:
+    info:
+      access: unrestricted
+    health:
+      access: unrestricted
+    prometheus:
+      access: read_only
 
 logging:
   config: classpath:logback/logback-${spring.profiles.active}.xml
   level:
     root: INFO
     com.winten: DEBUG
+    com.winten.greenlight: DEBUG
     org.springframework.data.redis: DEBUG
 
 ---
@@ -31,7 +60,6 @@ spring:
       port: ${STORAGE_REDIS_PORT}
       password: ${STORAGE_REDIS_PASSWORD}
 
-
 ---
 spring.config.activate.on-profile: live
 spring:
@@ -40,9 +68,13 @@ spring:
       host: ${STORAGE_REDIS_HOST}
       port: ${STORAGE_REDIS_PORT}
       password: ${STORAGE_REDIS_PASSWORD}
-
+logging:
+  level:
+    root: ERROR
+    com.winten: ERROR
+    com.winten.greenlight: ERROR
+    org.springframework.data.redis: ERROR
 management:
   endpoints:
     web:
-      exposure:
-        include: "prometheus"
+      base-path: ${GREENLIGHT_ACTUATOR_PATH}

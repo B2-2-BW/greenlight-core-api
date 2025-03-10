@@ -8,6 +8,7 @@ import lombok.Data;
 public class CustomerZSetEntity {
     private String customerId;
     private double score;
+    private Long queueSize;
     private WaitingPhase waitingPhase;
 
     public String key() {
