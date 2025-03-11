@@ -38,7 +38,6 @@ public class CustomerRelocationScheduler {
 
         Flux.interval(Duration.ofSeconds(5L), Schedulers.boundedElastic())
                 .flatMap(tick -> {
-                    System.out.println("###############################호롤롤로#################" + tick);
                     //0) N을 가져온다 : CachedEventService를 이용
                     return cachedEventService.getEventByName(event)
                                     .map(Event::getQueueBackpressure)
