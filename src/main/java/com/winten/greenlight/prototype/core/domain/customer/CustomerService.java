@@ -6,9 +6,7 @@ import com.winten.greenlight.prototype.core.domain.event.Event;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Range;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,7 +19,7 @@ public class CustomerService {
 
     public Mono<Customer> createCustomer(Customer customer, Event event) {
         return Mono.defer(() -> {
-            String customerId = customer.getCustomerId() + ":" + TsidCreator.getTsid();
+            String customerId = event.getEventName() + ":" + TsidCreator.getTsid();
             customer.setCustomerId(customerId); // 이벤트 이름으로 Customer ID 설정
             customer.setWaitingPhase(WaitingPhase.WAITING);
             return customerRepository.createCustomer(customer);
@@ -35,7 +33,7 @@ public class CustomerService {
         return customerRepository.getCustomerStatus(customer)
             .map(info -> {
                 if (info.getPosition() != null && info.getQueueSize() != null) {
-                    info.setEstimatedWaitTime(info.getPosition() * 60); // 예시 계산
+                    info.setEstimatedWaitTime(info.getPosition()); // 예시 계산
                 }
                 return info;
             })

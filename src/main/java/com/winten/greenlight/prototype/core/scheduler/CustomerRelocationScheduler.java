@@ -20,15 +20,13 @@ import java.time.Duration;
 public class CustomerRelocationScheduler {
     private final CachedEventService cachedEventService;
     private final CustomerService customerService;
-    private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
     private Event event;
     private String eventName = "test";
 
 
-    public CustomerRelocationScheduler(CachedEventService cachedEventService, CustomerService customerService, ReactiveRedisTemplate<String, String> reactiveRedisTemplate) {
+    public CustomerRelocationScheduler(CachedEventService cachedEventService, CustomerService customerService) {
         this.cachedEventService = cachedEventService;
         this.customerService = customerService;
-        this.reactiveRedisTemplate = reactiveRedisTemplate;
         this.event = new Event();
         event.setEventName(eventName);
     }
