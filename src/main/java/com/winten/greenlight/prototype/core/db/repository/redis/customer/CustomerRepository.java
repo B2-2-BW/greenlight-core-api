@@ -3,13 +3,19 @@ package com.winten.greenlight.prototype.core.db.repository.redis.customer;
 import com.github.f4b6a3.tsid.TsidCreator;
 import com.winten.greenlight.prototype.core.domain.customer.Customer;
 import com.winten.greenlight.prototype.core.domain.customer.CustomerQueueInfo;
+import com.winten.greenlight.prototype.core.domain.customer.CustomerService;
 import com.winten.greenlight.prototype.core.domain.customer.WaitingPhase;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Range;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Repository
 public class CustomerRepository {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
@@ -20,15 +26,12 @@ public class CustomerRepository {
 
     public Mono<Customer> createCustomer(Customer customer) {
         return Mono.defer(() -> {
-            String customerId = customer.getCustomerId() + ":" + TsidCreator.getTsid();
-            Customer newCustomer = new Customer(customerId, customer.getScore(), WaitingPhase.WAITING);
-
             return redisTemplate.opsForZSet()
-                    .add(newCustomer.getWaitingPhase().queueName(), newCustomer.getCustomerId(), newCustomer.getScore())
+                    .add(customer.getWaitingPhase().queueName(), customer.getCustomerId(), customer.getScore())
                     .<Customer>handle((success, sink) -> {
                         if (Boolean.TRUE.equals(success)) {
 //                            log.info("Successfully saved ticket: {}", newCustomer);
-                            sink.next(newCustomer);
+                            sink.next(customer);
                         } else {
                             sink.error(CoreException.of(ErrorType.REDIS_ERROR, "Customer Not Found"));
                         }
@@ -83,5 +86,16 @@ public class CustomerRepository {
                 .estimatedWaitTime(null) // Service에서 계산
                 .build();
         }).switchIfEmpty(Mono.just(new CustomerQueueInfo()));
+    }
+
+    public Flux<Customer> getTopNCustomers(long eventBackPressure) {
+        return redisTemplate.opsForZSet()
+                .rangeWithScores(WaitingPhase.WAITING.queueName(), Range.closed(0L, ((long)eventBackPressure-1L)))
+                .map(tuple -> {
+                    log.info("GetValue(): {}", tuple.getValue());
+                    return new Customer(tuple.getValue(), tuple.getScore(), WaitingPhase.READY);
+                })
+                //.map(tuple -> new Customer(tuple.getValue(), tuple.getScore(), WaitingPhase.READY))
+                .onErrorResume(e -> Mono.error(CoreException.of(ErrorType.REDIS_ERROR, e.getMessage())));
     }
 }
