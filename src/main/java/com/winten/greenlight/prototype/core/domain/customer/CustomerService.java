@@ -2,6 +2,7 @@ package com.winten.greenlight.prototype.core.domain.customer;
 
 import com.github.f4b6a3.tsid.TsidCreator;
 import com.winten.greenlight.prototype.core.db.repository.redis.customer.CustomerRepository;
+import com.winten.greenlight.prototype.core.domain.event.CachedEventService;
 import com.winten.greenlight.prototype.core.domain.event.Event;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
@@ -16,28 +17,28 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class CustomerService {
     private final CustomerRepository customerRepository;
+    private final CachedEventService cachedEventService;
 
     public Mono<Customer> createCustomer(Customer customer, Event event) {
         return Mono.defer(() -> {
             String customerId = event.getEventName() + ":" + TsidCreator.getTsid();
-            customer.setCustomerId(customerId); // 이벤트 이름으로 Customer ID 설정
-            customer.setWaitingPhase(WaitingPhase.WAITING);
-            return customerRepository.createCustomer(customer);
-        });
-//                .doOnSuccess(result -> log.info("Customer created: {}", result))
-//                .doOnError(error -> log.error("Error creating customer", error));
+            return customerRepository.createCustomer(new Customer(customerId, customer.getScore(), WaitingPhase.WAITING));
+        })
+        .onErrorResume(error -> Mono.error(CoreException.of(ErrorType.DEFAULT_ERROR, error.getMessage())));
     }
 
 
     public Mono<CustomerQueueInfo> getCustomerQueueInfo(Customer customer) {
-        return customerRepository.getCustomerStatus(customer)
-            .map(info -> {
-                if (info.getPosition() != null && info.getQueueSize() != null) {
-                    info.setEstimatedWaitTime(info.getPosition()); // 예시 계산
-                }
-                return info;
-            })
-            .filter(info -> info.getCustomerId() != null && info.getWaitingPhase() != null);
+        return customerRepository.getCustomerStatus(Customer.waiting(customer.getCustomerId())) // waiting 조회
+                .zipWith(cachedEventService.getEventByName(customer.toEvent()))
+                .flatMap(tuple -> {
+                    CustomerQueueInfo queueInfo = tuple.getT1();
+                    Event event = tuple.getT2();
+                    queueInfo.setEstimatedWaitTime(event.getQueueBackpressure() > 0 ? queueInfo.getPosition()/event.getQueueBackpressure() : -1L);
+                    return Mono.just(queueInfo);
+                })
+                .switchIfEmpty(customerRepository.getCustomerStatus(Customer.ready(customer.getCustomerId()))) // 없다면 ready 조회
+                .switchIfEmpty(Mono.error(new CoreException(ErrorType.CUSTOMER_NOT_FOUND))); // waiting과 ready에 둘 다 없다면 오류
     }
 
     public Mono<Customer> deleteCustomer(Customer customer) {
@@ -45,7 +46,7 @@ public class CustomerService {
     }
 
     public Flux<Customer> relocateCustomer(long eventBackPressure) {
-        if(eventBackPressure<1){ // 넘기는 고객의 수가 0일 경우, Flux.empty를 반환하고 종료한다.
+        if (eventBackPressure < 1) { // 넘기는 고객의 수가 0일 경우, Flux.empty를 반환하고 종료한다.
             log.info("No customers to relocated. Skipping transaction");
             return Flux.empty();
         }

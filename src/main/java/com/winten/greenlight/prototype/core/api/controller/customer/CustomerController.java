@@ -24,64 +24,28 @@ public class CustomerController {
     private final CachedEventService cachedEventService;
 
     @PostMapping(value = "")
-    public Mono<ResponseEntity<CustomerRegistrationResponseDto>> createCustomer(@RequestBody final CustomerRequestDto requestDto) {
+    public Mono<ResponseEntity<CustomerQueueInfoResponseDto>> createCustomer(@RequestBody final CustomerRequestDto requestDto) {
         long score = System.currentTimeMillis(); // 선착순 보장을 위해 최상단에서 score 채번
-
         return Mono.defer(() -> {
-                Customer customer = new Customer();
-                customer.setScore(score);
-
-                Event event = new Event();
-                event.setEventName(requestDto.getEventName()); // 이벤트 객체 생성
-
-                return customerService.createCustomer(customer, event)
-                        .map(responseCustomer -> ResponseEntity
-                                .status(201) // 201 CREATED 반환
-                                .body(new CustomerRegistrationResponseDto(
-                                        responseCustomer.getCustomerId(),
-                                        responseCustomer.getScore(),
-                                        new CustomerQueueInfo()
-                                )));
-            })
-            .doOnSuccess(response -> log.info("Customer created successfully: {}", response))
-            .doOnError(error -> log.error("Error while creating customer", error))
-            .onErrorResume(error -> {
-                if (error instanceof CoreException) {
-                    return Mono.just(ResponseEntity
-                            .badRequest()
-                            .body(new CustomerRegistrationResponseDto(null, 0, null))
-                    );
-                }
-                return Mono.just(ResponseEntity
-                        .status(500)
-                        .body(new CustomerRegistrationResponseDto(null, 0, null))
-                );
-            });
+            Event event = new Event();
+            event.setEventName(requestDto.getEventName()); // 이벤트 객체 생성
+            Customer customer = new Customer();
+            customer.setScore(score);
+            return customerService.createCustomer(customer, event)
+                    .flatMap(customerService::getCustomerQueueInfo)
+                    .map(info -> ResponseEntity.status(HttpStatus.CREATED).body(new CustomerQueueInfoResponseDto(info)));
+        });
     }
 
     @GetMapping("{customerId}/status")
     public Mono<ResponseEntity<CustomerQueueInfoResponseDto>> getCustomerQueueInfo(@BindParam final CustomerRequestDto requestDto) {
-        // customerId는 eventName:tsid 형식으로 생성됨. 예시. event-live:ABC123DEF456
-        // redis key는 customerId로 바로 조회 가능
-        // CustomerStatus 조회
-        // Waiting 상태인지 조회
-        // Ready 상태인지 조회
-        // 없으면 에러
-        // 성공시 HttpStatus 200 OK 반환
+        return Mono.defer(() -> {
+            Customer customer = new Customer();
+            customer.setCustomerId(requestDto.getCustomerId());
+            return customerService.getCustomerQueueInfo(customer)
+                .map(info -> ResponseEntity.ok(new CustomerQueueInfoResponseDto(info)));
+        });
 
-        Customer customer = new Customer();
-        customer.setCustomerId(requestDto.getCustomerId());
-
-        return customerService.getCustomerQueueInfo(customer)
-            .map(info -> CustomerQueueInfoResponseDto.builder()
-                .customerId(info.getCustomerId())
-                .position(info.getPosition())
-                .queueSize(info.getQueueSize())
-                .estimatedWaitTime(info.getEstimatedWaitTime())
-                .waitingPhase(info.getWaitingPhase())
-                .build())
-            .map(ResponseEntity::ok)
-            .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()));
     }
 
     @DeleteMapping("{customerId}")

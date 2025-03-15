@@ -16,7 +16,7 @@ import reactor.core.scheduler.Schedulers;
 import java.time.Duration;
 
 @Slf4j
-@Component
+//@Component
 public class CustomerRelocationScheduler {
     private final CachedEventService cachedEventService;
     private final CustomerService customerService;
