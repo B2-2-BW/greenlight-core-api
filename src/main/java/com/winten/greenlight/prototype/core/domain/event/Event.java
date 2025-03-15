@@ -31,4 +31,8 @@ public class Event implements Serializable {
         this.eventStartTime = entity.getEventStartTime();
         this.eventEndTime = entity.getEventEndTime();
     }
+
+    public static Event name(final String name) {
+        return Event.builder().eventName(name).build();
+    }
 }

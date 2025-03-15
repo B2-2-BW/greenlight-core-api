@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<included>
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+        <http>
+            <!-- Replace with your Loki server URL -->
+            <url>${lokiUrl}</url>
+        </http>
+        <format>
+            <label>
+                <!-- Labels for filtering in Loki -->
+                <pattern>name=${name},host=${HOSTNAME},level=%level</pattern>
+                <readMarkers>true</readMarkers>
+            </label>
+            <message>
+                <!-- Structured JSON log message -->
+                <pattern>{ "level":"%level", "class":"%logger{36}", "message": "%message", traceId="%X{traceId}", spanId="%X{spanId:-}" }</pattern>
+            </message>
+        </format>
+        <batchSize>10</batchSize>
+        <batchTimeoutMs>5000</batchTimeoutMs>
+    </appender>
+</included>

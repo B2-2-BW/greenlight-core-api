@@ -33,6 +33,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'io.zipkin.reporter2:zipkin-reporter-brave:3.5.0'
+    implementation 'io.micrometer:micrometer-tracing:1.4.3'
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave:1.4.3'
+    implementation 'com.github.loki4j:loki-logback-appender:1.6.0'
 
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'

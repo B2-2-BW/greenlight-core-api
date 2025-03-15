@@ -33,7 +33,6 @@ public class CustomerRelocationScheduler {
 
     @PostConstruct
     public void scheduleCustomerRelocation() {
-
         Flux.interval(Duration.ofSeconds(5L), Schedulers.boundedElastic())
                 .flatMap(tick -> {
                     //0) N을 가져온다 : CachedEventService를 이용

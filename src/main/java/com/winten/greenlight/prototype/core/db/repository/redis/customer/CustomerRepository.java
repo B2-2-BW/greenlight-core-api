@@ -25,38 +25,33 @@ public class CustomerRepository {
     }
 
     public Mono<Customer> createCustomer(Customer customer) {
-        return Mono.defer(() -> {
-            return redisTemplate.opsForZSet()
+        return redisTemplate.opsForZSet()
                     .add(customer.getWaitingPhase().queueName(), customer.getCustomerId(), customer.getScore())
                     .<Customer>handle((success, sink) -> {
                         if (Boolean.TRUE.equals(success)) {
-//                            log.info("Successfully saved ticket: {}", newCustomer);
                             sink.next(customer);
                         } else {
                             sink.error(CoreException.of(ErrorType.REDIS_ERROR, "Customer Not Found"));
                         }
                     })
                     .onErrorResume(e -> Mono.error(CoreException.of(ErrorType.REDIS_ERROR, e.getMessage())));
-        });
     }
     public Mono<CustomerQueueInfo> getCustomerStatus(Customer customer) {
         String customerId = customer.getCustomerId();
-        Mono<CustomerQueueInfo> waitingCheck = fetchFromQueue(WaitingPhase.WAITING, customerId);
-        Mono<CustomerQueueInfo> readyCheck = fetchFromQueue(WaitingPhase.READY, customerId);
-
-        return Mono.zip(waitingCheck.switchIfEmpty(Mono.just(new CustomerQueueInfo())),
-                readyCheck.switchIfEmpty(Mono.just(new CustomerQueueInfo())))
-            .map(tuple -> {
-                CustomerQueueInfo waitingEntity = tuple.getT1();
-                CustomerQueueInfo readyEntity = tuple.getT2();
-
-                if (waitingEntity.getCustomerId() != null && waitingEntity.getWaitingPhase() != null) {
-                    return waitingEntity;
-                } else if (readyEntity.getCustomerId() != null && readyEntity.getWaitingPhase() != null) {
-                    return readyEntity;
-                } else {
-                    return new CustomerQueueInfo();
-                }
+        WaitingPhase waitingPhase = customer.getWaitingPhase();
+        return Mono.zip(
+                    redisTemplate.opsForZSet().rank(waitingPhase.queueName(), customerId),  // 위치
+                    redisTemplate.opsForZSet().size(waitingPhase.queueName())               // 큐 크기
+            ).map(tuple -> {
+                Long position = tuple.getT1();
+                Long queueSize = tuple.getT2();
+                return CustomerQueueInfo.builder()
+                        .customerId(customerId)
+                        .position(position)
+                        .queueSize(queueSize)
+                        .waitingPhase(waitingPhase)
+                        .estimatedWaitTime(null) // Service에서 계산
+                        .build();
             });
     }
 
@@ -68,24 +63,6 @@ public class CustomerRepository {
                         //삭제된 데이터 없는 경우 Mono.empty() 반환
                         .flatMap(removedCount -> removedCount > 0 ? Mono.just(customer) : Mono.empty())
                 );
-    }
-
-    private Mono<CustomerQueueInfo> fetchFromQueue(WaitingPhase phase, String customerId) {
-        String queueName = phase.queueName();
-        return Mono.zip(
-            redisTemplate.opsForZSet().rank(queueName, customerId),  // 위치
-            redisTemplate.opsForZSet().size(queueName)               // 큐 크기
-        ).map(tuple -> {
-            Long position = tuple.getT1();
-            Long queueSize = tuple.getT2();
-            return CustomerQueueInfo.builder()
-                .customerId(position != null ? customerId : null)
-                .position(position)
-                .queueSize(queueSize)
-                .waitingPhase(position != null ? phase : null)
-                .estimatedWaitTime(null) // Service에서 계산
-                .build();
-        }).switchIfEmpty(Mono.just(new CustomerQueueInfo()));
     }
 
     public Flux<Customer> getTopNCustomers(long eventBackPressure) {
