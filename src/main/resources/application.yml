@@ -10,13 +10,6 @@ management:
   server:
     port: 18090
   endpoints:
-#    access:
-#      default: none
-#    jmx:
-#      exposure:
-#        exclude: "*"
-#        include: info, health
-#        include: "*"
     web:
       base-path: /actuator
       exposure:
@@ -35,13 +28,12 @@ management:
       access: read_only
 
 logging:
-  config: classpath:logback/logback-${spring.profiles.active}.xml
-  level:
-    root: INFO
-    com.winten: DEBUG
-    com.winten.greenlight: DEBUG
-    org.springframework.data.redis: DEBUG
-
+  config: classpath:logback/logback-spring.xml
+  loki:
+    url: ${LOKI_URL}
+#  pattern:
+#    level: %5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]
+#  include-application-name: false
 ---
 spring.config.activate.on-profile: local
 spring:
@@ -50,6 +42,18 @@ spring:
       host: ${STORAGE_REDIS_HOST}
       port: ${STORAGE_REDIS_PORT}
       password: ${STORAGE_REDIS_PASSWORD}
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+    propagation:
+      consume: b3
+      produce: b3_multi
+    enabled: true
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL}
+
 
 ---
 spring.config.activate.on-profile: dev
@@ -68,13 +72,17 @@ spring:
       host: ${STORAGE_REDIS_HOST}
       port: ${STORAGE_REDIS_PORT}
       password: ${STORAGE_REDIS_PASSWORD}
-logging:
-  level:
-    root: ERROR
-    com.winten: ERROR
-    com.winten.greenlight: ERROR
-    org.springframework.data.redis: ERROR
 management:
   endpoints:
     web:
       base-path: ${GREENLIGHT_ACTUATOR_PATH}
+  tracing:
+    sampling:
+      probability: 1.0
+    propagation:
+      consume: b3
+      produce: b3_multi
+    enabled: true
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL}

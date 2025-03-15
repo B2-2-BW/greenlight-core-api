@@ -6,11 +6,15 @@ import com.winten.greenlight.prototype.core.domain.event.CachedEventService;
 import com.winten.greenlight.prototype.core.domain.event.Event;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 @Slf4j
 @Service
@@ -18,6 +22,7 @@ import reactor.core.publisher.Mono;
 public class CustomerService {
     private final CustomerRepository customerRepository;
     private final CachedEventService cachedEventService;
+    private final ObservationRegistry observationRegistry;
 
     public Mono<Customer> createCustomer(Customer customer, Event event) {
         return Mono.defer(() -> {
@@ -50,15 +55,22 @@ public class CustomerService {
             log.info("No customers to relocated. Skipping transaction");
             return Flux.empty();
         }
-        //1) watingQueue에서 상위 N명의 고객을 가져온 뒤, 순차적으로 add, remove 를 실행한다
-        return customerRepository.getTopNCustomers(eventBackPressure)
-                .flatMap(customerRepository::createCustomer)//ready Queue insert
-                .doOnError(error -> log.error("Error while relocating add customer", error))
-                .flatMap(customer -> {
-                    customer.setWaitingPhase(WaitingPhase.WAITING);
-                    return customerRepository.deleteCustomer(customer)
-                            .doOnError(error -> log.error("Error while relocating remove customer", error));
-                })
-                .doOnNext(result -> log.info("Success to relocated: {}",result));
+        Observation observation = Observation.start("schedule-customer-relocation", observationRegistry);
+        observation.lowCardinalityKeyValue("class", "CustomerRelocationScheduler");
+        observation.lowCardinalityKeyValue("method", "relocateCustomer");
+        try (Observation.Scope scope = observation.openScope()) {
+            //1) watingQueue에서 상위 N명의 고객을 가져온 뒤, 순차적으로 add, remove 를 실행한다
+            return customerRepository.getTopNCustomers(eventBackPressure)
+                    .contextWrite(Context.of(ObservationThreadLocalAccessor.KEY, observation))
+                    .flatMap(customerRepository::createCustomer)//ready Queue insert
+                    .doOnError(error -> log.error("Error while relocating add customer", error))
+                    .flatMap(customer -> {
+                        customer.setWaitingPhase(WaitingPhase.WAITING);
+                        return customerRepository.deleteCustomer(customer)
+                                .contextWrite(Context.of(ObservationThreadLocalAccessor.KEY, observation))
+                                .doOnError(error -> log.error("Error while relocating remove customer", error));
+                    })
+                    .doOnNext(result -> log.info("Success to relocated: {}",result));
+            }
     }
 }
