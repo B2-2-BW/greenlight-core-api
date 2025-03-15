@@ -9,11 +9,11 @@
 
     <springProfile name="local">
         <include resource="logback/appender/console-appender.xml" />
-        <include resource="logback/appender/loki-appender.xml" />
+<!--        <include resource="logback/appender/loki-appender.xml" />-->
 
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="LOKI"/>
+<!--            <appender-ref ref="LOKI"/>-->
         </root>
     </springProfile>
 
