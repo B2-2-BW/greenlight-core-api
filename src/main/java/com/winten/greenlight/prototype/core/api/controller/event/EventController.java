@@ -21,8 +21,7 @@ public class EventController {
     @GetMapping("/{eventName}")
     public Mono<ResponseEntity<EventResponseDto>> getEvent(@BindParam final EventRequestDto requestDto) {
         return cachedEventService.getEventByName(requestDto.toEvent())
-                        .flatMap(event -> Mono.just(ResponseEntity.ok(new EventResponseDto(event))))
-                .then(Mono.error(new CoreException(ErrorType.DEFAULT_ERROR, "error!!")));
+                        .flatMap(event -> Mono.just(ResponseEntity.ok(new EventResponseDto(event))));
     }
 
 
