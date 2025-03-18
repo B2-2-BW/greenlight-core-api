@@ -27,6 +27,6 @@ public class CachedEventService {
     @CachePut(cacheNames = "event", key = "#event.eventName")
     public Mono<Event> invalidateEventCache(Event event) {
         return eventCacheStore.getEventByName(event)
-                .switchIfEmpty(Mono.error(CoreException.of(ErrorType.EVENT_NOT_FOUND, "이벤트를 찾을 수 없습니다. eventName: " + event.getEventName())));
+                .switchIfEmpty(Mono.empty());
     }
 }
