@@ -63,12 +63,12 @@ public class CustomerService {
             return customerRepository.getTopNCustomers(eventBackPressure)
                     .contextWrite(Context.of(ObservationThreadLocalAccessor.KEY, observation))
                     .flatMap(customerRepository::createCustomer)//ready Queue insert
-                    .doOnError(error -> log.error("Error while relocating add customer", error))
+                    .doOnError(error -> log.error("Error while relocating add customer {}", error.getMessage()))
                     .flatMap(customer -> {
                         customer.setWaitingPhase(WaitingPhase.WAITING);
                         return customerRepository.deleteCustomer(customer)
                                 .contextWrite(Context.of(ObservationThreadLocalAccessor.KEY, observation))
-                                .doOnError(error -> log.error("Error while relocating remove customer", error));
+                                .doOnError(error -> log.error("Error while relocating remove customer, {}", error.getMessage()));
                     })
                     .doOnNext(result -> log.info("Success to relocated: {}",result));
             }
