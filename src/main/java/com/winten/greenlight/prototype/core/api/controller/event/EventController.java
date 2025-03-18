@@ -26,9 +26,8 @@ public class EventController {
 
 
     @DeleteMapping("/{eventName}/cache")
-    public Mono<ResponseEntity<EventResponseDto>> invalidateEventCache(@BindParam final EventRequestDto requestDto) {
+    public Mono<ResponseEntity<String>> invalidateEventCache(@BindParam final EventRequestDto requestDto) {
         return cachedEventService.invalidateEventCache(requestDto.toEvent())
-                .flatMap(event -> Mono.just(ResponseEntity.ok(new EventResponseDto(event))))
-                .switchIfEmpty(Mono.just(ResponseEntity.ok(new EventResponseDto())));
+                .then(Mono.just(ResponseEntity.ok("ok")));
     }
 }
