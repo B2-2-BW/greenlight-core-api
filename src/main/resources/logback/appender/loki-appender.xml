@@ -16,7 +16,7 @@
             </label>
             <message>
                 <!-- Structured JSON log message -->
-                <pattern>{ "level":"%level", "class":"%logger{36}", "message": "%message", traceId="%X{traceId}", spanId="%X{spanId:-}" }</pattern>
+                <pattern>{ "level":"%level", "class":"%logger{36}", "message": "%message", "traceId": "%X{traceId}", "spanId": "%X{spanId:-}" }</pattern>
             </message>
         </format>
         <batchSize>10</batchSize>
