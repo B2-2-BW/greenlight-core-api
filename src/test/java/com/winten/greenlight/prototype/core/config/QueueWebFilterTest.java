@@ -194,4 +194,53 @@ class QueueWebFilterTest {
         verify(response, never()).setStatusCode(any());
         verify(jwtUtil, never()).validateToken(anyString());
     }
+
+    /**
+     * 활동: 유효하지 않은 토큰 (/queue/activity에서 HTTP 401).
+     * 활동: 쿠키 없음 (/queue/activity에서 HTTP 400).
+     * 중복성: /queue/heartbeat와 /queue/activity는 동일 로직 (uri.contains("/heartbeat") || uri.contains("/activity")) → 간접적 커버.
+     * /queue/activity의 유효하지 않은 토큰과 쿠키 없는 경우를 명시적으로 테스트하려면
+     * testHeartbeatWithInvalidToken, testHeartbeatWithoutToken과 유사하지만, URI가 /queue/activity로 변경
+     * */
+
+    @Test
+    void testActivityWithInvalidToken() {
+        // Given
+        String token = "invalid.token";
+        when(requestPath.toString()).thenReturn("/queue/activity");
+        when(cookies.getFirst("queueToken")).thenReturn(queueTokenCookie);
+        when(queueTokenCookie.getValue()).thenReturn(token);
+        when(jwtUtil.validateToken(token)).thenThrow(new RuntimeException("Invalid or expired token"));
+        when(bufferFactory.wrap(any(byte[].class))).thenReturn(mock(org.springframework.core.io.buffer.DataBuffer.class));
+        when(response.writeWith(any(Mono.class))).thenReturn(Mono.empty());
+
+        // When
+        Mono<Void> result = queueWebFilter.filter(exchange, chain);
+
+        // Then
+        result.block();
+        verify(response).setStatusCode(HttpStatus.UNAUTHORIZED);
+        verify(response).writeWith(any(Mono.class));
+        verify(chain, never()).filter(exchange);
+        verify(bufferFactory).wrap("Invalid or expired token".getBytes());
+    }
+
+    @Test
+    void testActivityWithoutToken() {
+        // Given
+        when(requestPath.toString()).thenReturn("/queue/activity");
+        when(cookies.getFirst("queueToken")).thenReturn(null);
+        when(bufferFactory.wrap(any(byte[].class))).thenReturn(mock(org.springframework.core.io.buffer.DataBuffer.class));
+        when(response.writeWith(any(Mono.class))).thenReturn(Mono.empty());
+
+        // When
+        Mono<Void> result = queueWebFilter.filter(exchange, chain);
+
+        // Then
+        result.block();
+        verify(response).setStatusCode(HttpStatus.BAD_REQUEST);
+        verify(response).writeWith(any(Mono.class));
+        verify(chain, never()).filter(exchange);
+        verify(bufferFactory).wrap("Missing queueToken cookie".getBytes());
+    }
 }
