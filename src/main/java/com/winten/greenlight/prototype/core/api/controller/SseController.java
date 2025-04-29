@@ -22,7 +22,7 @@ public class SseController {
 
     @GetMapping(value = "{customerId}",  produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<CustomerQueueInfo>> connect(@BindParam final CustomerRequestDto requestDto) {
-        return Flux.interval(Duration.ofSeconds(2)) // 매2초마다
+        return Flux.interval(Duration.ofSeconds(10)) // 매10초마다
                 .flatMap(tick -> sseService.getCustomerQueueInfo(requestDto.getCustomerId())) // 매 tick마다 새 데이터 조회
                 .map(data -> ServerSentEvent.builder(data).build());
     }
