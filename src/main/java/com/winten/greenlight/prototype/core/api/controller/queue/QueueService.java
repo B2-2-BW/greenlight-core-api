@@ -17,8 +17,6 @@ public class QueueService {
         this.redisTemplate = redisTemplate;
     }
 
-
-
     public Mono<String> enterQueue(String actionId) {
         String queueId = UUID.randomUUID().toString();
         long score = System.currentTimeMillis();
@@ -29,10 +27,18 @@ public class QueueService {
             .then(Mono.just(token));
     }
 
+    /**
+     * Mono.defer() 로 감싸기
+     * Mono.defer() 는 내부 코드 실행을 구독 시점으로 미루기 때문에
+     * 예외가 발생해도 Mono.error() 형태로 안전하게 흘러감
+     * */
     public Mono<Void> heartbeat(String token) {
-        String queueId = jwtUtil.validateToken(token).getSubject();
-        return redisTemplate.opsForZSet()
-            .add(ACTIVE_USERS_KEY, queueId, System.currentTimeMillis())
-            .then();
+        return Mono.defer(() -> {
+            String queueId = jwtUtil.validateToken(token).getSubject();
+            return redisTemplate.opsForZSet()
+                .add(ACTIVE_USERS_KEY, queueId, System.currentTimeMillis())
+                .then();
+        });
     }
+
 }
