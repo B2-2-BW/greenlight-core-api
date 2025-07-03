@@ -1,6 +1,5 @@
-package com.winten.greenlight.prototype.core.domain.actiongroup;
+package com.winten.greenlight.prototype.core.domain.action;
 
-import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.support.dto.AuditDto;
 import com.winten.greenlight.prototype.core.support.dto.Hashable;
 import lombok.AllArgsConstructor;

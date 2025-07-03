@@ -1,7 +1,6 @@
 package com.winten.greenlight.prototype.core.domain.action;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.winten.greenlight.prototype.core.domain.actiongroup.ActionGroup;
 import com.winten.greenlight.prototype.core.support.dto.AuditDto;
 import com.winten.greenlight.prototype.core.support.dto.Hashable;
 import lombok.AllArgsConstructor;

@@ -1,12 +1,9 @@
-package com.winten.greenlight.prototype.core.api.controller.action;
+package com.winten.greenlight.prototype.core.api.controller.customer;
 
 import com.winten.greenlight.prototype.core.domain.customer.CustomerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -21,13 +18,15 @@ public class CustomerController {
             @RequestBody CustomerEntryRequest request
     ) {
         long timestamp = System.currentTimeMillis();
-        return customerService.checkIn(request.toCustomerEntry(timestamp))
+        return customerService.requestEntry(request.toCustomerEntry(timestamp))
                 .map(entry -> CustomerEntryResponse.of(entry))
                 .map(res -> ResponseEntity.ok(res));
     }
 
-    @PostMapping("")
-    public Mono<ResponseEntity<CustomerEntryResponse>> requestEntry() {
+    @PostMapping("verify")
+    public Mono<ResponseEntity<CustomerEntryResponse>> verifyEntry(
+            @RequestHeader String autho
+    ) {
         return Mono.empty();
     }
 }

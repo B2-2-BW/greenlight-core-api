@@ -1,4 +1,4 @@
-package com.winten.greenlight.prototype.core.api.controller.action;
+package com.winten.greenlight.prototype.core.api.controller.customer;
 
 import com.winten.greenlight.prototype.core.domain.customer.CustomerEntry;
 import lombok.Data;
