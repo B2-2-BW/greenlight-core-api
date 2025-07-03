@@ -1,4 +1,4 @@
-package com.winten.greenlight.prototype.core.api.controller.customer;
+package com.winten.greenlight.prototype.core.domain.customer;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CustomerDeletionResponseDto {
+public class CustomerEntry {
+    private Long actionId;
     private String customerId;
+    private Long timestamp;
 }

@@ -34,14 +34,30 @@ logging:
 #  pattern:
 #    level: %5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]
 #  include-application-name: false
+
+spring:
+  data:
+    redis:
+      cluster:
+        max-redirects: 3
+
+redis:
+  key-prefix: ${REDIS_KEY_PREFIX}
+
 ---
 spring.config.activate.on-profile: local
 spring:
   data:
     redis:
-      host: ${STORAGE_REDIS_HOST}
-      port: ${STORAGE_REDIS_PORT}
-      password: ${STORAGE_REDIS_PASSWORD}
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_MASTER_NODE_1}
+          - ${REDIS_CLUSTER_MASTER_NODE_2}
+          - ${REDIS_CLUSTER_MASTER_NODE_3}
+          - ${REDIS_CLUSTER_WORKER_NODE_1}
+          - ${REDIS_CLUSTER_WORKER_NODE_2}
+          - ${REDIS_CLUSTER_WORKER_NODE_3}
+      password: ${REDIS_PASSWORD}
 management:
   tracing:
     sampling:
@@ -54,24 +70,35 @@ management:
     tracing:
       endpoint: ${ZIPKIN_URL}
 
-
 ---
 spring.config.activate.on-profile: dev
 spring:
   data:
     redis:
-      host: ${STORAGE_REDIS_HOST}
-      port: ${STORAGE_REDIS_PORT}
-      password: ${STORAGE_REDIS_PASSWORD}
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_MASTER_NODE_1}
+          - ${REDIS_CLUSTER_MASTER_NODE_2}
+          - ${REDIS_CLUSTER_MASTER_NODE_3}
+          - ${REDIS_CLUSTER_WORKER_NODE_1}
+          - ${REDIS_CLUSTER_WORKER_NODE_2}
+          - ${REDIS_CLUSTER_WORKER_NODE_3}
+      password: ${REDIS_PASSWORD}
 
 ---
 spring.config.activate.on-profile: live
 spring:
   data:
     redis:
-      host: ${STORAGE_REDIS_HOST}
-      port: ${STORAGE_REDIS_PORT}
-      password: ${STORAGE_REDIS_PASSWORD}
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_MASTER_NODE_1}
+          - ${REDIS_CLUSTER_MASTER_NODE_2}
+          - ${REDIS_CLUSTER_MASTER_NODE_3}
+          - ${REDIS_CLUSTER_WORKER_NODE_1}
+          - ${REDIS_CLUSTER_WORKER_NODE_2}
+          - ${REDIS_CLUSTER_WORKER_NODE_3}
+      password: ${REDIS_PASSWORD}
 management:
   endpoints:
     web:
