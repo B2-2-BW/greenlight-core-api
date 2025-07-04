@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CustomerEntry {
+public class EntryTicket {
     private Long actionId;
     private String customerId;
     private String destinationUrl;

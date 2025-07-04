@@ -1,5 +1,7 @@
 package com.winten.greenlight.prototype.core.support.util;
 
+import com.winten.greenlight.prototype.core.domain.customer.CustomerEntry;
+import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -28,14 +30,15 @@ public class JwtUtil {
     }
     // TODO
     // UserInfo로부터 JWT 토큰 생성
-//    public Customer generateToken(User user) {
-//        Map<String, Object> claims = new HashMap<>();
-//        claims.put("accountId", user.getAccountId());
-//        claims.put("userId", user.getUserId());
-//        claims.put("userRole", user.getUserRole());
-//
-//        return new UserToken(createToken(claims, user.getUserId()));
-//    }
+    public String generateToken(CustomerEntry entry) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("actionId", entry.getActionId());
+        claims.put("customerId", entry.getCustomerId());
+        claims.put("destinationUrl", entry.getDestinationUrl());
+        claims.put("timestamp", entry.getTimestamp());
+
+        return createToken(claims, entry.getCustomerId());
+    }
 
     // Claims와 subject로 토큰 생성
     private String createToken(Map<String, Object> claims, String subject) {
@@ -49,7 +52,7 @@ public class JwtUtil {
     }
 
     // 토큰에서 사용자명 추출
-    public String extractUsername(String token) {
+    public String extractCustomerId(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
@@ -77,12 +80,6 @@ public class JwtUtil {
     private Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
-    // TODO
-    // 토큰 유효성 검증
-//    public Boolean validateToken(String token, CurrentUser currentUser) {
-//        final String username = extractUsername(token);
-//        return (username.equals(currentUser.getUserId()) && !isTokenExpired(token));
-//    }
 
     // 토큰 유효성 검증 (UserInfo 없이)
     public Boolean validateToken(String token) {
@@ -96,18 +93,18 @@ public class JwtUtil {
             return false;
         }
     }
-    // TODO
-    // 토큰에서 UserInfo 객체 생성
-//    public CurrentUser getCurrentUserFromToken(String token) {
-//        Claims claims = extractAllClaims(token);
-//
-//        UserRole userRole = UserRole.valueOf(claims.get("userRole", String.class));
-//        return CurrentUser.builder()
-//                .accountId(claims.get("accountId", Long.class))
-//                .userId(claims.get("userId", String.class))
-//                .userRole(userRole)
-//                .build();
-//    }
+
+    // 토큰에서 CustomerEntry 객체 생성
+    public EntryTicket getEntryTicketFromToken(String token) {
+        Claims claims = extractAllClaims(token);
+
+        return EntryTicket.builder()
+                .actionId(claims.get("actionId", Long.class))
+                .customerId(claims.get("customerId", String.class))
+                .destinationUrl(claims.get("destinationUrl", String.class))
+                .timestamp(claims.get("timestamp", Long.class))
+                .build();
+    }
 
     // 토큰에서 특정 클레임 값 추출
     public String getClaimFromToken(String token, String claimName) {

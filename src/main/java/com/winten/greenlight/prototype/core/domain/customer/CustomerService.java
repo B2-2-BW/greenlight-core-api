@@ -3,11 +3,15 @@ package com.winten.greenlight.prototype.core.domain.customer;
 import com.winten.greenlight.prototype.core.db.repository.redis.customer.CustomerRepository;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.queue.CustomerQueueInfo;
+import com.winten.greenlight.prototype.core.support.error.CoreException;
+import com.winten.greenlight.prototype.core.support.error.ErrorType;
+import com.winten.greenlight.prototype.core.support.util.JwtUtil;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Slf4j
 @Service
@@ -16,6 +20,7 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     private final CachedActionService cachedActionService;
     private final ObservationRegistry observationRegistry;
+    private final JwtUtil jwtUtil;
 
     // TODO
     //  1. 서비스 입장
@@ -27,13 +32,26 @@ public class CustomerService {
         return Mono.empty();
     }
 
+    /**
+     * CustomerEntry에서 token String을 생성하는 함수
+     * @param customerEntry
+     * @return JWT String
+     */
+    private Mono<String> createEntryTicketToken(CustomerEntry customerEntry) {
+        return Mono.fromCallable(() -> jwtUtil.generateToken(customerEntry))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
     // TODO
     //  2. 입장권 검증요청
     //    - 입장권이 유효하지 않은 경우 대기열로 redirect
-    //    - 유효한경우 바로 이동
+    //    - 유효한경우 진입 허용
     //    - 입장권 사용처리
-    public Mono<?> verifyTicket() {
-        return Mono.empty();
+    public Mono<?> verifyTicket(String token) {
+        return Mono.just(jwtUtil.getEntryTicketFromToken(token))
+                .flatMap(ticket -> Mono.just(ticket))
+                .onErrorResume(e-> Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다.")))
+        ;
     }
 
     public Mono<Customer> createCustomer(Customer customer) {
