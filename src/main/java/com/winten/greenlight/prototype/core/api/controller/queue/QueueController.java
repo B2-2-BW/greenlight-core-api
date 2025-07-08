@@ -5,9 +5,10 @@ import com.winten.greenlight.prototype.core.domain.queue.QueueApplicationService
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import java.util.Map;
 
 
 /**
@@ -29,10 +30,19 @@ public class QueueController {
      * @return Mono<CheckOrEnterResponse> 대기 상태 및 발급된 토큰 정보를 포함하는 응답
      */
     @GetMapping("/check-or-enter")
-    public Mono<CheckOrEnterResponse> checkOrEnterQueue(
-        @RequestParam String actionUrl,
-        @RequestParam String customerId
-    ) {
-        return queueApplicationService.checkOrEnterQueue(actionUrl, customerId);
+    public Mono<CheckOrEnterResponse> checkOrEnterQueue(ServerHttpRequest request) {
+        // ServerHttpRequest에서 모든 쿼리 파라미터를 추출합니다.
+        Map<String, String> requestParams = request.getQueryParams().toSingleValueMap();
+
+        // 필수 파라미터인 actionUrl과 customerId를 추출합니다.
+        String actionUrl = requestParams.get("actionUrl");
+        String customerId = requestParams.get("customerId");
+
+        // TODO: actionUrl 또는 customerId가 null일 경우에 대한 예외 처리 필요
+        if (actionUrl == null || customerId == null) {
+            return Mono.just(new CheckOrEnterResponse("BAD_REQUEST", null, null));
+        }
+
+        return queueApplicationService.checkOrEnterQueue(actionUrl, customerId, requestParams);
     }
 }
