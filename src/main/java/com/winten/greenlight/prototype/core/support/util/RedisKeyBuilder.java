@@ -43,7 +43,7 @@ public class RedisKeyBuilder {
     }
     // 대기열 키 (기존 queue 메서드와 유사하지만, actionId를 직접 받도록)
     // 기존 queue(Long actionGroupId, WaitStatus waitStatus)와는 다름
-    public String waitingQueue(Long actionId) {
-        return String.format("%s:action:%d:queue:waiting", prefix, actionId);
+    public String waitingQueue(Long actionGroupId) {
+        return String.format("%s:action_group:%d:queue:%s", prefix, actionGroupId, WaitStatus.WAITING);
     }
 }

@@ -41,9 +41,10 @@ public class QueueApplicationService {
     public Mono<CheckOrEnterResponse> checkOrEnterQueue(String actionUrl, String customerId, Map<String, String> requestParams) {
         // 1. actionUrl을 기반으로 Action 정보를 조회합니다.
         // Mono.flatMap을 사용하여 Action 객체가 조회된 후에 다음 로직을 수행합니다.
+        // TODO 지금은 유지, 추후에 findById로 교체 확인
         return actionDomainService.findActionByUrl(actionUrl)
             .flatMap(action ->
-                // 2. 조회된 Action에 연결된 모든 ActionRule들을 조회합니다.
+                // 2. 조회된 Action에 연결된 모든 ActionRule들을 조회합니다. // TODO actionRules는 위에서 이미 가져오고 있음
                 // Flux<ActionRule>을 Mono<List<ActionRule>>로 변환하여 모든 규칙을 한 번에 처리할 수 있도록 합니다.
                 actionDomainService.findRulesByActionId(action.getId())
                     .collectList()
@@ -67,6 +68,7 @@ public class QueueApplicationService {
                                 }
 
                                 // 4b. 고객이 이미 유효한 토큰을 가지고 있는지 확인합니다.
+                                // TODO token은 저장할 필요 x, JwtUtil.validateToken 으로 검증만 진행
                                 return tokenDomainService.findValidTokenJwt(customerId, action.getId())
                                     .flatMap(existingJwt ->
                                         // 4b-1. 유효한 토큰이 있는 경우, 해당 토큰의 현재 대기 순번을 조회하여 반환합니다.
@@ -82,7 +84,7 @@ public class QueueApplicationService {
                                                     return issueNewWaitingToken(customerId, action);
                                                 } else {
                                                     // 4b-2-2. 즉시 입장 가능한 경우, ALLOWED 상태의 토큰을 발급합니다.
-                                                    return issueNewAllowedToken(customerId, action, WaitStatus.ALLOWED.name());
+                                                    return issueNewAllowedToken(customerId, action, WaitStatus.READY.name());
                                                 }
                                             })));
                             });
@@ -119,7 +121,7 @@ public class QueueApplicationService {
      */
     private Mono<CheckOrEnterResponse> issueNewAllowedToken(String customerId, Action action, String status) {
         // 1. TokenDomainService를 통해 ALLOWED 상태의 새로운 토큰을 발급합니다.
-        return tokenDomainService.issueToken(customerId, action, WaitStatus.ALLOWED.name())
+        return tokenDomainService.issueToken(customerId, action, WaitStatus.READY.name())
             .map(newJwt ->
                 // 2. 지정된 상태(status), 발급된 토큰, 그리고 대기 순번 0L을 포함하는 응답 객체를 생성하여 반환합니다.
                 // 0L은 대기 순번이 없음을 의미합니다.

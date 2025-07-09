@@ -4,9 +4,7 @@ package com.winten.greenlight.prototype.core.domain.queue;
 import com.winten.greenlight.prototype.core.api.controller.queue.dto.CheckOrEnterResponse;
 import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
-import com.winten.greenlight.prototype.core.domain.action.ActionRule;
 import com.winten.greenlight.prototype.core.domain.action.DefaultRuleType;
-import com.winten.greenlight.prototype.core.domain.action.MatchOperator;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.token.TokenDomainService;
 import com.winten.greenlight.prototype.core.support.util.RuleMatcher;
@@ -23,8 +21,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -103,7 +99,7 @@ class QueueApplicationServiceTest {
         when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(true);
         when(tokenDomainService.findValidTokenJwt(TEST_CUSTOMER_ID, TEST_ACTION_ID)).thenReturn(Mono.empty());
         when(queueDomainService.isWaitingRequired(TEST_ACTION_GROUP_ID)).thenReturn(Mono.just(false)); // 대기 불필요 시나리오
-        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.ALLOWED.name()))
+        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.READY.name()))
             .thenReturn(Mono.just("all-allowed-token"));
 
         // when
@@ -112,7 +108,7 @@ class QueueApplicationServiceTest {
         // then
         StepVerifier.create(result)
             .expectNextMatches(response ->
-                response.getStatus().equals(WaitStatus.ALLOWED.name()) &&
+                response.getStatus().equals(WaitStatus.READY.name()) &&
                     response.getToken().equals("all-allowed-token")
             )
             .verifyComplete();
@@ -153,7 +149,7 @@ class QueueApplicationServiceTest {
         testAction.setDefaultRuleType(DefaultRuleType.INCLUDE); // 기본 정책: INCLUDE
         // RuleMatcher가 규칙에 일치하지 않아 대기열 미적용을 지시
         when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(false);
-        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.ALLOWED.name()))
+        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.READY.name()))
             .thenReturn(Mono.just("include-bypassed-token"));
 
         // when
@@ -177,7 +173,7 @@ class QueueApplicationServiceTest {
         testAction.setDefaultRuleType(DefaultRuleType.EXCLUDE); // 기본 정책: EXCLUDE
         // RuleMatcher가 규칙에 일치하여 대기열 미적용을 지시
         when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(false);
-        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.ALLOWED.name()))
+        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.READY.name()))
             .thenReturn(Mono.just("exclude-bypassed-token"));
 
         // when
