@@ -22,6 +22,10 @@ public class ActionDomainService {
         return actionRepository.findByUrl(url);
     }
 
+    public Mono<Action> findActionById(Long id) {
+        return actionRepository.getActionById(id);
+    }
+
     public Mono<Boolean> isActionEffectivelyEnabled(Action action) {
         // 실제 구현은 Action의 상태 및 그룹 상태를 종합적으로 판단
         return Mono.just(true);

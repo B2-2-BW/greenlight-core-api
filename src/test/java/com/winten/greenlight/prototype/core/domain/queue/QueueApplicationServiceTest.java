@@ -1,4 +1,3 @@
-
 package com.winten.greenlight.prototype.core.domain.queue;
 
 import com.winten.greenlight.prototype.core.api.controller.queue.dto.CheckOrEnterResponse;
@@ -7,6 +6,8 @@ import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
 import com.winten.greenlight.prototype.core.domain.action.DefaultRuleType;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.token.TokenDomainService;
+import com.winten.greenlight.prototype.core.support.error.CoreException;
+import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import com.winten.greenlight.prototype.core.support.util.RuleMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -83,7 +84,7 @@ class QueueApplicationServiceTest {
 
         defaultRequestParams = Map.of("actionUrl", TEST_ACTION_URL, "customerId", TEST_CUSTOMER_ID);
 
-        when(actionDomainService.findActionByUrl(TEST_ACTION_URL)).thenReturn(Mono.just(testAction));
+        when(actionDomainService.findActionById(TEST_ACTION_ID)).thenReturn(Mono.just(testAction));
         when(actionDomainService.isActionEffectivelyEnabled(testAction)).thenReturn(Mono.just(true));
         when(actionDomainService.findRulesByActionId(TEST_ACTION_ID)).thenReturn(Flux.empty()); // 기본적으로 규칙 없음
     }
@@ -97,19 +98,16 @@ class QueueApplicationServiceTest {
         testAction.setDefaultRuleType(DefaultRuleType.ALL); // 기본 정책: ALL
         // RuleMatcher는 항상 true를 반환하도록 Mocking (실제 로직은 ALL일 때 규칙 무시)
         when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(true);
-        when(tokenDomainService.findValidTokenJwt(TEST_CUSTOMER_ID, TEST_ACTION_ID)).thenReturn(Mono.empty());
         when(queueDomainService.isWaitingRequired(TEST_ACTION_GROUP_ID)).thenReturn(Mono.just(false)); // 대기 불필요 시나리오
-        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.READY.name()))
-            .thenReturn(Mono.just("all-allowed-token"));
 
         // when
-        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_URL, TEST_CUSTOMER_ID, defaultRequestParams);
+        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_ID, TEST_CUSTOMER_ID, defaultRequestParams);
 
         // then
         StepVerifier.create(result)
             .expectNextMatches(response ->
                 response.getStatus().equals(WaitStatus.READY.name()) &&
-                    response.getToken().equals("all-allowed-token")
+                    response.getToken() == null
             )
             .verifyComplete();
     }
@@ -123,20 +121,17 @@ class QueueApplicationServiceTest {
         testAction.setDefaultRuleType(DefaultRuleType.INCLUDE); // 기본 정책: INCLUDE
         // RuleMatcher가 규칙에 일치하여 대기열 적용을 지시
         when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(true);
-        when(tokenDomainService.findValidTokenJwt(TEST_CUSTOMER_ID, TEST_ACTION_ID)).thenReturn(Mono.empty());
         when(queueDomainService.isWaitingRequired(TEST_ACTION_GROUP_ID)).thenReturn(Mono.just(true)); // 대기 필요 시나리오
-        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.WAITING.name()))
-            .thenReturn(Mono.just("include-waiting-token"));
         when(queueDomainService.addUserToQueue(eq(TEST_ACTION_ID), anyString())).thenReturn(Mono.just(25L));
 
         // when
-        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_URL, TEST_CUSTOMER_ID, defaultRequestParams);
+        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_ID, TEST_CUSTOMER_ID, defaultRequestParams);
 
         // then
         StepVerifier.create(result)
             .expectNextMatches(response ->
                 response.getStatus().equals(WaitStatus.WAITING.name()) &&
-                    response.getToken().equals("include-waiting-token") &&
+                    response.getToken() == null &&
                     response.getRank() == 25L
             )
             .verifyComplete();
@@ -149,17 +144,15 @@ class QueueApplicationServiceTest {
         testAction.setDefaultRuleType(DefaultRuleType.INCLUDE); // 기본 정책: INCLUDE
         // RuleMatcher가 규칙에 일치하지 않아 대기열 미적용을 지시
         when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(false);
-        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.READY.name()))
-            .thenReturn(Mono.just("include-bypassed-token"));
 
         // when
-        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_URL, TEST_CUSTOMER_ID, defaultRequestParams);
+        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_ID, TEST_CUSTOMER_ID, defaultRequestParams);
 
         // then
         StepVerifier.create(result)
             .expectNextMatches(response ->
                 response.getStatus().equals("BYPASSED_BY_RULE") &&
-                    response.getToken().equals("include-bypassed-token")
+                    response.getToken() == null
             )
             .verifyComplete();
     }
@@ -173,17 +166,15 @@ class QueueApplicationServiceTest {
         testAction.setDefaultRuleType(DefaultRuleType.EXCLUDE); // 기본 정책: EXCLUDE
         // RuleMatcher가 규칙에 일치하여 대기열 미적용을 지시
         when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(false);
-        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.READY.name()))
-            .thenReturn(Mono.just("exclude-bypassed-token"));
 
         // when
-        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_URL, TEST_CUSTOMER_ID, defaultRequestParams);
+        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_ID, TEST_CUSTOMER_ID, defaultRequestParams);
 
         // then
         StepVerifier.create(result)
             .expectNextMatches(response ->
                 response.getStatus().equals("BYPASSED_BY_RULE") &&
-                    response.getToken().equals("exclude-bypassed-token")
+                    response.getToken() == null
             )
             .verifyComplete();
     }
@@ -195,46 +186,18 @@ class QueueApplicationServiceTest {
         testAction.setDefaultRuleType(DefaultRuleType.EXCLUDE); // 기본 정책: EXCLUDE
         // RuleMatcher가 규칙에 일치하지 않아 대기열 적용을 지시
         when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(true);
-        when(tokenDomainService.findValidTokenJwt(TEST_CUSTOMER_ID, TEST_ACTION_ID)).thenReturn(Mono.empty());
         when(queueDomainService.isWaitingRequired(TEST_ACTION_GROUP_ID)).thenReturn(Mono.just(true)); // 대기 필요 시나리오
-        when(tokenDomainService.issueToken(TEST_CUSTOMER_ID, testAction, WaitStatus.WAITING.name()))
-            .thenReturn(Mono.just("exclude-waiting-token"));
         when(queueDomainService.addUserToQueue(eq(TEST_ACTION_ID), anyString())).thenReturn(Mono.just(30L));
 
         // when
-        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_URL, TEST_CUSTOMER_ID, defaultRequestParams);
+        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_ID, TEST_CUSTOMER_ID, defaultRequestParams);
 
         // then
         StepVerifier.create(result)
             .expectNextMatches(response ->
                 response.getStatus().equals(WaitStatus.WAITING.name()) &&
-                    response.getToken().equals("exclude-waiting-token") &&
+                    response.getToken() == null &&
                     response.getRank() == 30L
-            )
-            .verifyComplete();
-    }
-
-    // --- 기존 시나리오 (DefaultRuleType.ALL로 가정하고 RuleMatcher가 true 반환) --- //
-
-    @Test
-    @DisplayName("기존 토큰 보유 시, EXISTING 상태와 기존 토큰, 현재 순번을 반환한다")
-    void checkOrEnterQueue_ExistingUser() {
-        // given
-        testAction.setDefaultRuleType(DefaultRuleType.ALL); // ALL로 가정
-        when(ruleMatcher.isRequestSubjectToQueue(any(Action.class), anyList(), anyMap())).thenReturn(true);
-        String existingToken = "existing-token";
-        when(tokenDomainService.findValidTokenJwt(TEST_CUSTOMER_ID, TEST_ACTION_ID)).thenReturn(Mono.just(existingToken));
-        when(queueDomainService.getQueueRank(eq(TEST_ACTION_ID), anyString())).thenReturn(Mono.just(5L));
-
-        // when
-        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_URL, TEST_CUSTOMER_ID, defaultRequestParams);
-
-        // then
-        StepVerifier.create(result)
-            .expectNextMatches(response ->
-                response.getStatus().equals("EXISTING") &&
-                    response.getToken().equals(existingToken) &&
-                    response.getRank() == 5L
             )
             .verifyComplete();
     }
@@ -248,11 +211,11 @@ class QueueApplicationServiceTest {
         when(actionDomainService.isActionEffectivelyEnabled(testAction)).thenReturn(Mono.just(false));
 
         // when
-        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_URL, TEST_CUSTOMER_ID, defaultRequestParams);
+        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_ID, TEST_CUSTOMER_ID, defaultRequestParams);
 
         // then
         StepVerifier.create(result)
-            .expectNextMatches(response -> response.getStatus().equals("DISABLED"))
+            .expectNextMatches(response -> response.getStatus().equals("DISABLED") && response.getToken() == null)
             .verifyComplete();
     }
 
@@ -260,14 +223,17 @@ class QueueApplicationServiceTest {
     @DisplayName("Action을 찾을 수 없는 경우, ACTION_NOT_FOUND 상태를 반환한다")
     void checkOrEnterQueue_ActionNotFound() {
         // given
-        when(actionDomainService.findActionByUrl(TEST_ACTION_URL)).thenReturn(Mono.empty());
+        when(actionDomainService.findActionById(TEST_ACTION_ID)).thenReturn(Mono.empty());
 
         // when
-        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_URL, TEST_CUSTOMER_ID, defaultRequestParams);
+        Mono<CheckOrEnterResponse> result = queueApplicationService.checkOrEnterQueue(TEST_ACTION_ID, TEST_CUSTOMER_ID, defaultRequestParams);
 
         // then
         StepVerifier.create(result)
-            .expectNextMatches(response -> response.getStatus().equals("ACTION_NOT_FOUND"))
-            .verifyComplete();
+            .expectErrorMatches(throwable ->
+                throwable instanceof CoreException &&
+                ((CoreException) throwable).getErrorType() == ErrorType.ACTION_NOT_FOUND
+            )
+            .verify();
     }
 }
