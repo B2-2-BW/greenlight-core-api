@@ -1,6 +1,7 @@
 package com.winten.greenlight.prototype.core.api.controller.queue;
 
 import com.winten.greenlight.prototype.core.domain.queue.QueueApplicationService;
+import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
@@ -26,10 +27,10 @@ public class QueueController {
      *
      * @param actionId      사용자가 접근하려는 액션의 ID
      * @param greenlightToken (Optional) 고객이 보유한 대기열 토큰
-     * @return Mono<String> 대기 상태 (WAITING, READY, BYPASSED, DISABLED)
+     * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
     @GetMapping("/check-or-enter")
-    public Mono<String> checkOrEnterQueue(
+    public Mono<EntryTicket> checkOrEnterQueue(
             @RequestParam Long actionId,
             @RequestHeader(name = "X-GREENLIGHT-TOKEN", required = false) String greenlightToken,
             @RequestParam Map<String, String> requestParams
