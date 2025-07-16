@@ -81,4 +81,14 @@ public class TokenDomainService {
                 // 조회된 JWT가 JwtUtil을 통해 유효성 검증을 통과하는지 확인합니다.
                 jwtUtil.validateToken(jwt) ? Mono.just(jwt) : Mono.empty());
     }
+
+    /**
+     * JWT 토큰에서 actionId를 추출합니다.
+     *
+     * @param token JWT 토큰 문자열
+     * @return Mono<Long> 추출된 actionId (없으면 Mono.empty())
+     */
+    public Mono<Long> getActionIdFromToken(String token) {
+        return Mono.justOrEmpty(jwtUtil.extractActionId(token));
+    }
 }

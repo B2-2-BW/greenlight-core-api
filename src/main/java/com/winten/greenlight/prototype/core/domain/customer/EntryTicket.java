@@ -14,4 +14,7 @@ public class EntryTicket {
     private String customerId;
     private String destinationUrl;
     private Long timestamp;
+
+    public EntryTicket(WaitStatus waitStatus, Object o) {
+    }
 }
