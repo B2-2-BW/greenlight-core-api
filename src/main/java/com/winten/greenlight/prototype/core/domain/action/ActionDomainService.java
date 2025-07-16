@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 /**
  * Action 도메인의 비즈니스 로직을 담당하는 서비스입니다.
  * Action 및 ActionGroup 정보 조회, 활성화 여부 판단 등의 기능을 제공합니다.
@@ -23,7 +25,15 @@ public class ActionDomainService {
     }
 
     public Mono<Action> findActionById(Long id) {
-        return actionRepository.getActionById(id);
+        return actionRepository.getActionById(id)
+            .flatMap(action ->
+                actionRuleRepository.findByActionId(action.getId())
+                    .collectList()
+                    .map(rules -> {
+                        action.setActionRules(rules);
+                        return action;
+                    })
+            );
     }
 
     public Mono<Boolean> isActionEffectivelyEnabled(Action action) {

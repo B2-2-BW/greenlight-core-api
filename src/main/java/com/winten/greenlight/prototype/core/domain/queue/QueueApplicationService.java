@@ -41,46 +41,42 @@ public class QueueApplicationService {
     public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String greenlightToken, Map<String, String> requestParams) {
         return actionDomainService.findActionById(actionId)
             .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
-            .flatMap(action ->
-                actionDomainService.findRulesByActionId(action.getId())
-                    .collectList()
-                    .flatMap(rules -> {
-                        // 1. 큐 적용 대상이 아닌 경우, BYPASSED 처리
-                        if (!ruleMatcher.isRequestSubjectToQueue(action, rules, requestParams)) {
-                            return Mono.just(new EntryTicket(WaitStatus.BYPASSED, null));
+            .flatMap(action -> {
+                // 1. 큐 적용 대상이 아닌 경우, BYPASSED 처리
+                if (!ruleMatcher.isRequestSubjectToQueue(action, action.getActionRules(), requestParams)) {
+                    return Mono.just(new EntryTicket(WaitStatus.BYPASSED, null));
+                }
+
+                // 2. 액션이 비활성화된 경우, DISABLED 처리
+                return actionDomainService.isActionEffectivelyEnabled(action)
+                    .flatMap(isEnabled -> {
+                        if (!isEnabled) {
+                            return Mono.just(new EntryTicket(WaitStatus.DISABLED, null));
                         }
 
-                        // 2. 액션이 비활성화된 경우, DISABLED 처리
-                        return actionDomainService.isActionEffectivelyEnabled(action)
-                            .flatMap(isEnabled -> {
-                                if (!isEnabled) {
-                                    return Mono.just(new EntryTicket(WaitStatus.DISABLED, null));
-                                }
-
-                                // 3. 토큰이 있는 경우, 이전 action의 토큰인지 여부 판단
-                                if (StringUtils.hasText(greenlightToken)) {
-                                    return tokenDomainService.getActionIdFromToken(greenlightToken)
-                                        .flatMap(tokenActionId -> {
-                                            if (actionId.equals(tokenActionId)) {
-                                                // 1-2. 만약 이전 action의 토큰이 아니라면, READY 상태 반환
-                                                return Mono.just(new EntryTicket(WaitStatus.READY, greenlightToken));
-                                            } else {
-                                                // 1-1. 만약 이전 action의 토큰이라면, waiting queue에 저장하는 로직 태운다.
-                                                return handleNewEntry(actionId, action.getActionGroupId(), action, requestParams);
-                                            }
-                                        })
-                                        .switchIfEmpty(handleNewEntry(actionId, action.getActionGroupId(), action, requestParams))
-                                        .onErrorResume(e -> {
-                                            // 토큰에서 actionId 추출 실패 시 신규 진입자로 처리
-                                            return handleNewEntry(actionId, action.getActionGroupId(), action, requestParams);
-                                        });
-                                } else {
-                                    // 4. 토큰이 없는 신규 진입자 처리
+                        // 3. 토큰이 있는 경우, 이전 action의 토큰인지 여부 판단
+                        if (StringUtils.hasText(greenlightToken)) {
+                            return tokenDomainService.getActionIdFromToken(greenlightToken)
+                                .flatMap(tokenActionId -> {
+                                    if (actionId.equals(tokenActionId)) {
+                                        // 1-2. 만약 이전 action의 토큰이 아니라면, READY 상태 반환
+                                        return Mono.just(new EntryTicket(WaitStatus.READY, greenlightToken));
+                                    } else {
+                                        // 1-1. 만약 이전 action의 토큰이라면, waiting queue에 저장하는 로직 태운다.
+                                        return handleNewEntry(actionId, action.getActionGroupId(), action, requestParams);
+                                    }
+                                })
+                                .switchIfEmpty(handleNewEntry(actionId, action.getActionGroupId(), action, requestParams))
+                                .onErrorResume(e -> {
+                                    // 토큰에서 actionId 추출 실패 시 신규 진입자로 처리
                                     return handleNewEntry(actionId, action.getActionGroupId(), action, requestParams);
-                                }
-                            });
-                    })
-            );
+                                });
+                        } else {
+                            // 4. 토큰이 없는 신규 진입자 처리
+                            return handleNewEntry(actionId, action.getActionGroupId(), action, requestParams);
+                        }
+                    });
+            });
     }
 
     /**
@@ -95,7 +91,7 @@ public class QueueApplicationService {
      */
     private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, com.winten.greenlight.prototype.core.domain.action.Action action, Map<String, String> requestParams) {
         return generateCustomerId(actionId)
-            .flatMap(customerId ->
+            .flatMap(customerId -> 
                 queueDomainService.isWaitingRequired(actionGroupId)
                     .flatMap(isWaiting -> {
                         if (isWaiting) {
