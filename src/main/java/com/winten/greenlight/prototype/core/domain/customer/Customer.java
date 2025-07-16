@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Customer {
     private Long actionId;
+    private Long actionGroupId;
     private String customerId;
     private Long score;
     private WaitStatus waitStatus;

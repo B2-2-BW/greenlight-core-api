@@ -7,12 +7,11 @@ import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
+import com.winten.greenlight.prototype.core.support.util.RedisMemberBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Range;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Repository;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -21,6 +20,7 @@ import reactor.core.publisher.Mono;
 public class CustomerRepository {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final RedisKeyBuilder keyBuilder;
+    private final RedisMemberBuilder memberBuilder;
 
     public Mono<Customer> enqueueCustomer(Customer customer, Action action) {
         String waitKey = keyBuilder.queue(action.getActionGroupId(), WaitStatus.WAITING);
@@ -57,13 +57,42 @@ public class CustomerRepository {
     }
 
     public Mono<Customer> deleteCustomer(Customer customer) {
-        return Mono.empty();
-//        return Mono.just(CustomerEntity.of(customer))
-//                .flatMap(entity -> redisTemplate.opsForZSet()
-//                        //삭제처리
-//                        .remove(customer.getWaitStatus().queueName(), entity.getCustomerId())
-//                        //삭제된 데이터 없는 경우 Mono.empty() 반환
-//                        .flatMap(removedCount -> removedCount > 0 ? Mono.just(customer) : Mono.empty())
-//                );
+        var key = keyBuilder.queue(customer.getActionGroupId(), WaitStatus.READY);
+        var member = memberBuilder.queue(customer.getActionId(), customer.getCustomerId());
+        return redisTemplate.opsForZSet().remove(key, member)
+                .flatMap(removedCount -> {
+                    if (removedCount > 0) {
+                        return Mono.just(customer);
+                    } else {
+                        return Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "삭제할 고객을 찾을 수 없습니다. " + customer));
+                    }
+                })
+        ;
+    }
+
+    public Mono<Customer> getCustomerFromReadyQueue(Customer customer) {
+        var key = keyBuilder.queue(customer.getActionGroupId(), WaitStatus.READY);
+        var member = memberBuilder.queue(customer.getActionId(), customer.getCustomerId());
+        return redisTemplate.opsForZSet().rank(key, member)
+                .defaultIfEmpty(-1L) // 없을 경우 -1 리턴
+                .map(rank -> rank >= 0 ? WaitStatus.READY : WaitStatus.UNKNOWN) // READY queue에 있는지 여부를 WaitStatus로 변환
+                .map(waitStatus -> {
+                    customer.setWaitStatus(waitStatus);
+                    return customer;
+                });
+    }
+
+    public Mono<Customer> enqueueCustomerToEntered(Customer customer) {
+        var key = keyBuilder.queue(customer.getActionGroupId(), WaitStatus.ENTERED);
+        var member = memberBuilder.queue(customer.getActionId(), customer.getCustomerId());
+        return redisTemplate.opsForZSet().add(key, member, System.currentTimeMillis())
+                .flatMap(result -> {
+                    if (result) {
+                        customer.setWaitStatus(WaitStatus.ENTERED);
+                        return Mono.just(customer);
+                    } else {
+                        return Mono.error(CoreException.of(ErrorType.REDIS_ERROR, "Failed to add customer to queue. Customer: " + customer));
+                    }
+                });
     }
 }

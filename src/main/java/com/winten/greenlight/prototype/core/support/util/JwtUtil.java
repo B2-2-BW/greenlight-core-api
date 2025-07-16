@@ -69,6 +69,9 @@ public class JwtUtil {
 
     // 토큰에서 모든 클레임 추출
     private Claims extractAllClaims(String token) {
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
@@ -96,6 +99,7 @@ public class JwtUtil {
 
     // 토큰에서 CustomerEntry 객체 생성
     public EntryTicket getEntryTicketFromToken(String token) {
+
         Claims claims = extractAllClaims(token);
 
         return EntryTicket.builder()

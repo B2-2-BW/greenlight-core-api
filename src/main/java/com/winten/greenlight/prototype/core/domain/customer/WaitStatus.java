@@ -11,12 +11,17 @@ public enum WaitStatus {
      *
      *
      */
-    ALLOWED("입장 가능"),
+    READY("입장 가능"),
 
     /**
      * 입장 완료: 서비스에 입장한 최종 상태입니다.
      */
-    ENTERED("입장 완료")
+    ENTERED("입장 완료"),
+
+    /**
+     * 알 수 없음: 비정상적인 상태입니다.
+     */
+    UNKNOWN("알 수 없음")
     ;
 
     private final String description; // 상태에 대한 설명

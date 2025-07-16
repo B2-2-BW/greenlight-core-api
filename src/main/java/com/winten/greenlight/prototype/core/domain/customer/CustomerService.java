@@ -47,10 +47,26 @@ public class CustomerService {
     //    - 입장권이 유효하지 않은 경우 대기열로 redirect
     //    - 유효한경우 진입 허용
     //    - 입장권 사용처리
-    public Mono<?> verifyTicket(String token) {
-        return Mono.just(jwtUtil.getEntryTicketFromToken(token))
-                .flatMap(ticket -> Mono.just(ticket))
-                .onErrorResume(e-> Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다.")))
+    public Mono<Customer> verifyTicket(String token) {
+        var ticket = jwtUtil.getEntryTicketFromToken(token);
+        return cachedActionService.getActionById(ticket.getActionId())
+                .flatMap(action -> {
+                    // ready에 있는지 검사, 있다면 Entered로 이동시키고 허용하는 응답 반환
+                    var customer = Customer.builder()
+                            .customerId(ticket.getCustomerId())
+                            .actionGroupId(action.getActionGroupId())
+                            .actionId(action.getId())
+                            .build();
+                    return customerRepository.getCustomerFromReadyQueue(customer);
+                })
+                .flatMap(customer -> {
+                    if (customer.getWaitStatus() == WaitStatus.READY) {
+                        return customerRepository.deleteCustomer(customer)
+                                .flatMap(deleted -> customerRepository.enqueueCustomerToEntered(customer));
+                    } else {
+                        return Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다."));
+                    }
+                })
         ;
     }
 
