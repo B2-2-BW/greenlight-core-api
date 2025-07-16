@@ -6,8 +6,8 @@ import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import com.winten.greenlight.prototype.core.support.util.RuleMatcher;
-import com.winten.greenlight.prototype.core.support.util.TsId;
 import com.winten.greenlight.prototype.core.domain.token.TokenDomainService;
+import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -95,7 +95,7 @@ public class QueueApplicationService {
      */
     private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, com.winten.greenlight.prototype.core.domain.action.Action action, Map<String, String> requestParams) {
         return generateCustomerId(actionId)
-            .flatMap(customerId -> 
+            .flatMap(customerId ->
                 queueDomainService.isWaitingRequired(actionGroupId)
                     .flatMap(isWaiting -> {
                         if (isWaiting) {
@@ -125,6 +125,6 @@ public class QueueApplicationService {
      * @return Mono<String> 생성된 customerId
      */
     private Mono<String> generateCustomerId(Long actionId) {
-        return Mono.fromCallable(() -> actionId + ":" + TsId.fast());
+        return Mono.fromCallable(() -> actionId + ":" + TSID.fast().toString());
     }
 }
