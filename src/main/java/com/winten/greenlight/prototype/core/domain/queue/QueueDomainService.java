@@ -3,7 +3,9 @@ package com.winten.greenlight.prototype.core.domain.queue;
 import com.winten.greenlight.prototype.core.db.repository.redis.queue.QueueRepository;
 import com.winten.greenlight.prototype.core.domain.action.ActionGroup;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
+import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.token.TokenDomainService;
+import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -19,6 +21,7 @@ public class QueueDomainService {
     private final QueueRepository queueRepository;
     private final CachedActionService cachedActionService; // ActionGroup 정보를 위해 주입
     private final TokenDomainService tokenDomainService;
+    private final RedisKeyBuilder redisKeyBuilder;
 
     /**
      * 특정 ActionGroup에 대해 현재 대기가 필요한지 판단합니다.
@@ -39,15 +42,16 @@ public class QueueDomainService {
     }
 
     /**
-     * 사용자를 대기열(Redis Sorted Set)에 추가합니다.
+     * 사용자를 지정된 상태의 대기열(Redis Sorted Set)에 추가합니다.
      *
-     * @param actionId 사용자가 진입하려는 Action의 ID
-     * @param queueId  사용자에게 부여된 고유 대기 ID (JWT의 subject 등)
-     * @param  대기열 순서를 결정하는 점수 (예: System.currentTimeMillis())
+     * @param actionGroupId 사용자가 진입하려는 ActionGroup의 ID
+     * @param customerId  사용자에게 부여된 고유 ID
+     * @param status 대기열의 상태 (WAITING or READY)
      * @return Mono<Long> 대기열에 추가된 후의 순번 (0부터 시작)
      */
-    public Mono<Long> addUserToQueue(Long actionId, String queueId) {
-        return queueRepository.addToWaitingQueue(actionId, queueId, System.currentTimeMillis());
+    public Mono<Long> addUserToQueue(Long actionGroupId, String customerId, WaitStatus status) {
+        String queueKey = redisKeyBuilder.queue(actionGroupId, status);
+        return queueRepository.add(queueKey, customerId, System.currentTimeMillis());
     }
 
     /**ㄷ

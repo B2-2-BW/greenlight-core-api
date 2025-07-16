@@ -32,18 +32,17 @@ public class QueueRepository {
     }
 
     /**
-     * 사용자를 대기열(Waiting Queue)에 추가합니다.
+     * 지정된 키의 Sorted Set에 사용자를 추가합니다.
      * Redis ZSET의 ADD 명령어를 사용하며, 현재 시간을 score로 사용하여 순서를 결정합니다.
      *
-     * @param actionId 사용자가 진입하려는 Action의 ID
-     * @param queueId  사용자에게 부여된 고유 대기 ID (JWT의 subject 등)
-     * @param score    대기열 순서를 결정하는 점수 (예: System.currentTimeMillis())
-     * @return Mono<Long> 대기열에 추가된 후의 순번 (0부터 시작)
+     * @param key      Redis Sorted Set의 키
+     * @param value    추가할 사용자 ID
+     * @param score    순서를 결정하는 점수
+     * @return Mono<Long> 추가된 후의 순번 (0부터 시작)
      */
-    public Mono<Long> addToWaitingQueue(Long actionId, String queueId, double score) {
-        String key = keyBuilder.waitingQueue(actionId); // "queue:{actionId}:waiting" 키 생성
-        return redisTemplate.opsForZSet().add(key, queueId, score)
-            .flatMap(added -> added ? redisTemplate.opsForZSet().rank(key, queueId) : Mono.just(-1L)); // 추가 성공 시 순위 반환, 실패 시 -1L
+    public Mono<Long> add(String key, String value, double score) {
+        return redisTemplate.opsForZSet().add(key, value, score)
+            .flatMap(added -> added ? redisTemplate.opsForZSet().rank(key, value) : Mono.just(-1L)); // 추가 성공 시 순위 반환, 실패 시 -1L
     }
 
     /**

@@ -39,8 +39,6 @@ public class QueueController {
             return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "actionId is required."));
         }
 
-        boolean hasToken = StringUtils.hasText(greenlightToken);
-
-        return queueApplicationService.checkOrEnterQueue(actionId, hasToken, requestParams);
+        return queueApplicationService.checkOrEnterQueue(actionId, greenlightToken, requestParams);
     }
 }
