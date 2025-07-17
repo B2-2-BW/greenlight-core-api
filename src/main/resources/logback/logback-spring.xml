@@ -3,7 +3,7 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <springProperty scope="context" name="name" source="spring.application.name"/>
-    <springProperty scope="context" name="lokiUrl" source="logging.loki.url"/>
+    <!--    <springProperty scope="context" name="lokiUrl" source="logging.loki.url"/>-->
     <property name="CONSOLE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} | [%thread] | %5p | %X{traceId:-} | %X{spanId:-} | %msg%n"/>
     <property name="FILE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} | [%thread] | %5p | %X{traceId:-} | %X{spanId:-} | %msg%n"/>
 
