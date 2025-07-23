@@ -16,7 +16,7 @@ public class QueueSseController {
     private final QueueSseService queueSseService;
 
     // SSE 연동
-    @GetMapping(value = "sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<WaitStatus>> connectSse(
             @RequestParam Long actionGroupId,
             @RequestParam String entryId
