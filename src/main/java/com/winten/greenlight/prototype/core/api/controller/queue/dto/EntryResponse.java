@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class CheckOrEnterResponse {
+public class EntryResponse {
     private final String status;
     private final String token;
     private final Long rank;
