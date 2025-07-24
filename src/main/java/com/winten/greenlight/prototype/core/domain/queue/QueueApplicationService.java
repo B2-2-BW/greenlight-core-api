@@ -1,6 +1,7 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
 import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
+import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
@@ -28,6 +29,7 @@ public class QueueApplicationService {
     private final QueueDomainService queueDomainService;
     private final RuleMatcher ruleMatcher;
     private final TokenDomainService tokenDomainService;
+    private final CachedActionService cachedActionService;
 
     /**
      * 사용자의 대기열 상태를 확인하고, 현재 상태에 따라 적절한 응답을 반환합니다.
@@ -91,7 +93,7 @@ public class QueueApplicationService {
      */
     private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, com.winten.greenlight.prototype.core.domain.action.Action action, Map<String, String> requestParams) {
         return generateCustomerId(actionId)
-            .flatMap(customerId -> 
+            .flatMap(customerId ->
                 queueDomainService.isWaitingRequired(actionGroupId)
                     .flatMap(isWaiting -> {
                         if (isWaiting) {
