@@ -39,7 +39,7 @@ public class QueueApplicationService {
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
     public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String greenlightToken, Map<String, String> requestParams) {
-        return actionDomainService.findActionById(actionId)
+        return cachedActionService.getActionById(actionId)
             .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
             .flatMap(action -> {
                 // 1. 큐 적용 대상이 아닌 경우, BYPASSED 처리
