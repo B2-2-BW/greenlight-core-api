@@ -1,6 +1,6 @@
 package com.winten.greenlight.prototype.core.api.controller.queue;
 
-import com.winten.greenlight.prototype.core.api.controller.queue.dto.CheckOrEnterRequest;
+import com.winten.greenlight.prototype.core.api.controller.queue.dto.EntryRequest;
 import com.winten.greenlight.prototype.core.domain.queue.QueueApplicationService;
 import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
