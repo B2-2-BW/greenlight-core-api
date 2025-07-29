@@ -46,14 +46,14 @@ public class QueueApplicationService {
             .flatMap(action -> {
                 // 1. 큐 적용 대상이 아닌 경우, BYPASSED 처리
                 if (!ruleMatcher.isRequestSubjectToQueue(action, action.getActionRules(), requestParams)) {
-                    return Mono.just(new EntryTicket(WaitStatus.BYPASSED, null));
+                    return Mono.just(new EntryTicket(action.getId(), null, action.getLandingDestinationUrl(), System.currentTimeMillis(), WaitStatus.BYPASSED, null));
                 }
 
                 // 2. 액션이 비활성화된 경우, DISABLED 처리
                 return actionDomainService.isActionEffectivelyEnabled(action)
                     .flatMap(isEnabled -> {
                         if (!isEnabled) {
-                            return Mono.just(new EntryTicket(WaitStatus.DISABLED, null));
+                            return Mono.just(new EntryTicket(action.getId(), null, action.getLandingDestinationUrl(), System.currentTimeMillis(), WaitStatus.DISABLED, null));
                         }
 
                         // 3. 토큰이 있는 경우, 이전 action의 토큰인지 여부 판단
@@ -62,7 +62,8 @@ public class QueueApplicationService {
                                 .flatMap(tokenActionId -> {
                                     if (actionId.equals(tokenActionId)) {
                                         // 1-2. 만약 이전 action의 토큰이 아니라면, READY 상태 반환
-                                        return Mono.just(new EntryTicket(WaitStatus.READY, greenlightToken));
+                                        // 기존 토큰이 유효하고 현재 actionId와 일치하는 경우, 해당 토큰을 그대로 사용하며 EntryTicket의 모든 필드를 채웁니다.
+                                        return Mono.just(new EntryTicket(action.getId(), tokenDomainService.extractCustomerId(greenlightToken), action.getLandingDestinationUrl(), System.currentTimeMillis(), WaitStatus.READY, greenlightToken));
                                     } else {
                                         // 1-1. 만약 이전 action의 토큰이라면, waiting queue에 저장하는 로직 태운다.
                                         return handleNewEntry(actionId, action.getActionGroupId(), action, requestParams);
@@ -101,14 +102,14 @@ public class QueueApplicationService {
                             return tokenDomainService.issueToken(customerId, action, WaitStatus.WAITING.name())
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.WAITING)
-                                        .thenReturn(new EntryTicket(WaitStatus.WAITING, newJwt))
+                                        .thenReturn(new EntryTicket(action.getId(), customerId, action.getLandingDestinationUrl(), System.currentTimeMillis(), WaitStatus.WAITING, newJwt))
                                 );
                         } else {
                             // 6. 대기가 필요 없는 경우: READY 토큰 발급 및 준비열 등록
                             return tokenDomainService.issueToken(customerId, action, WaitStatus.READY.name())
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.READY)
-                                        .thenReturn(new EntryTicket(WaitStatus.READY, newJwt))
+                                        .thenReturn(new EntryTicket(action.getId(), customerId, action.getLandingDestinationUrl(), System.currentTimeMillis(), WaitStatus.READY, newJwt))
                                 );
                         }
                     })
