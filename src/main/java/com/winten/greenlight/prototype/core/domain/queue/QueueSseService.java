@@ -45,7 +45,7 @@ public class QueueSseService {
     private String generateKey(Long actionGroupId, String customerId) {
         return actionGroupId + ":" + customerId;
     }
-    
+
     // 사용자 SSE 연결 시 호출되는 메소드
     // Sinks.Many를 생성해 저장 후 Flux로 반환 / sse 연결 종료 시 Map에서 제거
     public Flux<WaitStatus> subscribe(Long actionGroupId, String customerId) {
@@ -53,7 +53,7 @@ public class QueueSseService {
 
         //Sink 생성 ( 마지막 이벤트만 재전송하는 replay 최신 방식 )
         //Sink가 마지막으로 emit한 값을 기억 -> 새로 구독한 클라이언트에게도 마지막 값 전달
-        
+
         //Sink.many() 여러값을 발행할 수 있는 Sink를 생성하는 진입점 -> 많은 값을 여러번 보낼 수 있는 스트림을 만들겠다
         Sinks.Many<WaitStatus> sink = Sinks.many().replay().latest();
 
@@ -92,7 +92,7 @@ public class QueueSseService {
     }
 
     public Mono<WaitStatus> findUserStatus(Long actionGroupId, String customerId) {
-        List<WaitStatus> targetStatuses = List.of(WaitStatus.ALLOWED, WaitStatus.WAITING);
+        List<WaitStatus> targetStatuses = List.of(WaitStatus.READY, WaitStatus.WAITING);
 
         for (WaitStatus status : targetStatuses) {
             String redisKey = redisKeyBuilder.queue(actionGroupId, status);
