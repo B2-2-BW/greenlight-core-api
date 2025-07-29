@@ -19,11 +19,6 @@ public class ActionDomainService {
     private final ActionRepository actionRepository; // 기존 의존성
     private final ActionRuleRepository actionRuleRepository; // [NEW] 신규 의존성
 
-    public Mono<Action> findActionByUrl(String url) {
-        // 실제 구현은 DB 조회 로직
-        return actionRepository.findByUrl(url);
-    }
-
     public Mono<Action> findActionById(Long id) {
         return actionRepository.getActionById(id)
             .flatMap(action ->
@@ -41,10 +36,4 @@ public class ActionDomainService {
         return Mono.just(true);
     }
 
-    /**
-     * [NEW] 특정 Action에 속한 모든 ActionRule을 조회하는 메소드
-     */
-    public Flux<ActionRule> findRulesByActionId(Long actionId) {
-        return actionRuleRepository.findByActionId(actionId);
-    }
 }
