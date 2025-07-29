@@ -15,10 +15,5 @@ public class EntryTicket {
     private String destinationUrl;
     private Long timestamp;
     private WaitStatus waitStatus;
-    private String jwt;
-
-    public EntryTicket(WaitStatus waitStatus, String jwt) {
-        this.waitStatus = waitStatus;
-        this.jwt = jwt;
-    }
+    private String jwtToken; 
 }
