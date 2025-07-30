@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
+import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
@@ -89,9 +90,9 @@ public class QueueApplicationService {
      * @param requestParams 요청 파라미터 맵
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-    private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, com.winten.greenlight.prototype.core.domain.action.Action action, Map<String, String> requestParams) {
+    private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, Action action, Map<String, String> requestParams) {
         return generateCustomerId(actionId)
-            .flatMap(customerId -> 
+            .flatMap(customerId ->
                 queueDomainService.isWaitingRequired(actionGroupId)
                     .flatMap(isWaiting -> {
                         if (isWaiting) {
