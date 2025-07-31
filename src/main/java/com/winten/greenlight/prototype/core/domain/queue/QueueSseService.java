@@ -51,7 +51,10 @@ public class QueueSseService {
     public Flux<CustomerQueueInfo> subscribe(Long actionGroupId, String customerId) {
         String key = generateKey(actionGroupId, customerId);
 
-        // Sink 생성 (마지막 이벤트 재전송 보장)
+        //Sink 생성 ( 마지막 이벤트만 재전송하는 replay 최신 방식 )
+        //Sink가 마지막으로 emit한 값을 기억 -> 새로 구독한 클라이언트에게도 마지막 값 전달
+
+        //Sink.many() 여러값을 발행할 수 있는 Sink를 생성하는 진입점 -> 많은 값을 여러번 보낼 수 있는 스트림을 만들겠다
         Sinks.Many<CustomerQueueInfo> sink = Sinks.many().replay().latest();
 
         //Sink 저장 ( 고객별 key로 식별 )
