@@ -60,7 +60,7 @@ public class QueueSseService {
         //Sink 저장 ( 고객별 key로 식별 )
         userSinkMap.put(key, sink);
 
-        // Flux 리턴 + SSE 연결 종료 시 map에서 제거
+        //연결된 Flux 반환 ( 끊길 경우 자동 제거 )
         return sink.asFlux()
                 .doFinally(signalType -> userSinkMap.remove(key));
     }
@@ -71,13 +71,13 @@ public class QueueSseService {
             String key = entry.getKey();
             Sinks.Many<CustomerQueueInfo> sink = entry.getValue();
 
-            // key = actionGroupId:entryId
+            // key = actionGroupId:customerId
             String[] parts = key.split(":");
             Long actionGroupId = Long.valueOf(parts[0]);
-            String entryId = parts[1];
+            String customerId = parts[1];
 
             // 고객의 현재 상태 조회 후 Sink에 push
-            findUserQueueInfo(actionGroupId, entryId)
+            findUserQueueInfo(actionGroupId, customerId)
                     .subscribe(sink::tryEmitNext);
         }
     }
