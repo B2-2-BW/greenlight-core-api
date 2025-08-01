@@ -1,10 +1,15 @@
 package com.winten.greenlight.prototype.core.api.controller.action;
 
+import com.winten.greenlight.prototype.core.domain.action.Action;
+import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 /**
  * Action, ActionGroup 조회 및 캐시 초기화 컨트롤러. 기능이 많지 않아서 하나의 컨트롤러로 합쳤음
@@ -14,6 +19,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class ActionController {
     private final CachedActionService cachedActionService;
+    private final ActionDomainService actionDomainService;
 
     @GetMapping("/action-groups/{actionGroupId}")
     public Mono<ResponseEntity<ActionGroupResponse>> getActionGroupById(@PathVariable final Long actionGroupId) {
@@ -39,5 +45,13 @@ public class ActionController {
     public Mono<ResponseEntity<String>> invalidateActionCache(@PathVariable final Long actionId) {
         return cachedActionService.invalidateActionCache(actionId)
                 .then(Mono.just(ResponseEntity.ok("ok")));
+    }
+
+    @GetMapping("/actions")
+    public Flux<ActionResponse> getActionGroupByKey(
+            @RequestHeader("X-GREENLIGHT-API-KEY") String greenlightApiKey
+    ) {
+        return actionDomainService.getActionsFromApiKey(greenlightApiKey)
+                .map(ActionResponse::from);
     }
 }
