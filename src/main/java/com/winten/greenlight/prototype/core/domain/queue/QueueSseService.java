@@ -26,7 +26,7 @@ public class QueueSseService {
 
     //사용자별로 상태를 push할 수 있는 sink 저장소
     // key: actionGroupId:customerId ( 마음대로 정할 수 있지만, 보통 해당 형식으로 설정 )
-    private final Map<String, Sinks.Many<WaitStatus>> userSinkMap = new ConcurrentHashMap<>();
+    private final Map<String, Sinks.Many<CustomerQueueInfo>> userSinkMap = new ConcurrentHashMap<>();
 
     // 참고자료: Flux.interval 사용 시 모든 사용자 요청에 interval 이 생성됨
     // 사용자 요청은 연결만 진행하고 일정 주기로 전체 사용자에게 일괄로 상태를 전송하는 방식으로 구현 필요
@@ -36,8 +36,8 @@ public class QueueSseService {
     @PostConstruct
     //서비스 시작 시 단일 interval 생성, 모든 접속 사용자에게 상태 정보를 동시에 push
     public void startBroadcastLoop() {
-        Flux.interval(Duration.ofSeconds(1))
-                .onBackpressureDrop()
+        Flux.interval(Duration.ofSeconds(1))  // 1초마다 주기적으로 실행
+                .onBackpressureDrop()        // backpressure 시 오래된 tick drop
                 .subscribe(tick -> broadcastStatuses());
     }
 
@@ -48,14 +48,14 @@ public class QueueSseService {
 
     // 사용자 SSE 연결 시 호출되는 메소드
     // Sinks.Many를 생성해 저장 후 Flux로 반환 / sse 연결 종료 시 Map에서 제거
-    public Flux<WaitStatus> subscribe(Long actionGroupId, String customerId) {
+    public Flux<CustomerQueueInfo> subscribe(Long actionGroupId, String customerId) {
         String key = generateKey(actionGroupId, customerId);
 
         //Sink 생성 ( 마지막 이벤트만 재전송하는 replay 최신 방식 )
         //Sink가 마지막으로 emit한 값을 기억 -> 새로 구독한 클라이언트에게도 마지막 값 전달
 
         //Sink.many() 여러값을 발행할 수 있는 Sink를 생성하는 진입점 -> 많은 값을 여러번 보낼 수 있는 스트림을 만들겠다
-        Sinks.Many<WaitStatus> sink = Sinks.many().replay().latest();
+        Sinks.Many<CustomerQueueInfo> sink = Sinks.many().replay().latest();
 
         //Sink 저장 ( 고객별 key로 식별 )
         userSinkMap.put(key, sink);
@@ -67,40 +67,60 @@ public class QueueSseService {
 
     //모든 접속 사용자에 대해 대기열 상태 조회 후 push
     private void broadcastStatuses() {
-        for (Map.Entry<String, Sinks.Many<WaitStatus>> entry : userSinkMap.entrySet()) {
+        for (Map.Entry<String, Sinks.Many<CustomerQueueInfo>> entry : userSinkMap.entrySet()) {
             String key = entry.getKey();
-            Sinks.Many<WaitStatus> sink = entry.getValue();
+            Sinks.Many<CustomerQueueInfo> sink = entry.getValue();
 
-            // key = actionGroupId:entryId
+            // key = actionGroupId:customerId
             String[] parts = key.split(":");
             Long actionGroupId = Long.valueOf(parts[0]);
-            String entryId = parts[1];
+            String customerId = parts[1];
 
-            //현재 사용자의 대기 상태 조회 후 sink로 전달
-            findUserStatus(actionGroupId, entryId).subscribe(sink::tryEmitNext);
+            // 고객의 현재 상태 조회 후 Sink에 push
+            findUserQueueInfo(actionGroupId, customerId)
+                    .subscribe(sink::tryEmitNext);
         }
     }
 
     // sse 연결해서 고객의 현재 대기상태를 조회할 때 사용
-    public Flux<WaitStatus> connect(Long actionGroupId, String entryId) {
-        return Flux.interval(Duration.ofSeconds(2))
-                .flatMap(tick -> findUserStatus(actionGroupId, entryId))
-                .distinctUntilChanged();
+    public Flux<CustomerQueueInfo> connect(Long actionGroupId, String customerId) {
+        return Flux.interval(Duration.ofSeconds(2))   // 2초마다 polling
+                .flatMap(tick -> findUserQueueInfo(actionGroupId, customerId))
+                .distinctUntilChanged();             // 상태가 바뀔 때만 이벤트 발행
     }
 
     public void updateQueueStatus() {
     }
 
-    public Mono<WaitStatus> findUserStatus(Long actionGroupId, String customerId) {
+    public Mono<CustomerQueueInfo> findUserQueueInfo(Long actionGroupId, String customerId) {
         List<WaitStatus> targetStatuses = List.of(WaitStatus.READY, WaitStatus.WAITING);
 
         for (WaitStatus status : targetStatuses) {
             String redisKey = redisKeyBuilder.queue(actionGroupId, status);
+
+            // 현재 고객의 순번(rank)
             Long rank = redisTemplate.opsForZSet().rank(redisKey, customerId);
+
             if (rank != null) {
-                return Mono.just(status);
+                // 현재 큐 전체 인원 조회
+                Long queueSize = redisTemplate.opsForZSet().size(redisKey);
+
+                // 예상 대기 시간 계산 ( 2초로 가정 ** TODO 몇초로 지정할건지 추가 확인 필요 )
+                Long estimatedWaitTime = (queueSize != null) ? queueSize * 2 : 0;
+
+                // DTO 생성 후 반환
+                CustomerQueueInfo info = new CustomerQueueInfo();
+                info.setCustomerId(customerId);
+                info.setPosition(rank + 1);  // Redis rank는 0-based → +1
+                info.setQueueSize(queueSize);
+                info.setEstimatedWaitTime(estimatedWaitTime);
+                info.setWaitStatus(status);
+
+                return Mono.just(info);
             }
         }
+
+        // 큐에 없는 고객 empty 반환
         return Mono.empty();
     }
 
