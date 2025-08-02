@@ -21,9 +21,9 @@ public class QueueSseController {
     @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<CustomerQueueInfo>> connectSse(
             @RequestParam Long actionGroupId,
-            @RequestParam String entryId
+            @RequestParam String customerId
     ) {
-        return queueSseService.connect(actionGroupId, entryId)
+        return queueSseService.connect(actionGroupId, customerId)
                 .map(status -> ServerSentEvent.builder(status).build());
     }
 
@@ -31,7 +31,7 @@ public class QueueSseController {
     // 고객 상태 조회
     // 고객이 어떤 queue에 들어가있는지 확인
     @GetMapping("/status")
-    public Mono<CustomerQueueInfo> findUserQueueStatus(Long actionGroupId, String entryId) {
-        return queueSseService.findUserQueueInfo(actionGroupId, entryId);
+    public Mono<CustomerQueueInfo> findUserQueueStatus(Long actionGroupId, String customerId) {
+        return queueSseService.findUserQueueInfo(actionGroupId, customerId);
     }
 }
