@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.core.api.controller.queue;
 
+import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.customer.Customer;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.queue.CustomerQueueInfo;
@@ -16,15 +17,20 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class QueueSseController {
     private final QueueSseService queueSseService;
+    private final CachedActionService cachedActionService;
 
     // SSE 연동
     @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<CustomerQueueInfo>> connectSse(
-            @RequestParam Long actionGroupId,
+            @RequestParam Long actionId,
             @RequestParam String customerId
     ) {
-        return queueSseService.connect(actionGroupId, customerId)
-                .map(status -> ServerSentEvent.builder(status).build());
+        return cachedActionService.getActionById(actionId)   // Mono<Action>
+                .flatMapMany(action -> {
+                    Long actionGroupId = action.getActionGroupId();
+                    return queueSseService.connect(actionGroupId, customerId); // Flux<CustomerQueueInfo>
+                })
+                .map(queueInfo -> ServerSentEvent.builder(queueInfo).build());
     }
 
 
