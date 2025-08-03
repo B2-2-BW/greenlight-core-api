@@ -101,14 +101,14 @@ public class QueueApplicationService {
                     .flatMap(isWaiting -> {
                         if (isWaiting) {
                             // 5. 대기가 필요한 경우: WAITING 토큰 발급 및 대기열 등록
-                            return tokenDomainService.issueToken(customerId, action, WaitStatus.WAITING.name())
+                            return tokenDomainService.issueToken(customerId, action, WaitStatus.WAITING.name(), landingDestinationUrl)
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.WAITING)
                                         .thenReturn(new EntryTicket(action.getId(), customerId, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.WAITING, newJwt))
                                 );
                         } else {
                             // 6. 대기가 필요 없는 경우: READY 토큰 발급 및 준비열 등록
-                            return tokenDomainService.issueToken(customerId, action, WaitStatus.READY.name())
+                            return tokenDomainService.issueToken(customerId, action, WaitStatus.READY.name(), landingDestinationUrl)
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.READY)
                                         .thenReturn(new EntryTicket(action.getId(), customerId, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.READY, newJwt))

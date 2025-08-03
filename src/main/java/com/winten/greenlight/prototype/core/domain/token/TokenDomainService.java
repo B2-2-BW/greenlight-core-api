@@ -30,7 +30,7 @@ public class TokenDomainService {
      * @param status     토큰의 초기 상태 (예: "WAITING", "ALLOWED")
      * @return Mono<String> 발급된 JWT 토큰 문자열
      */
-    public Mono<String> issueToken(String customerId, Action action, String status) {
+    public Mono<String> issueToken(String customerId, Action action, String status, String landingDestinationUrl) {
         // 시나리오 1: 기존 토큰을 찾아 만료시키는 로직
         return findValidTokenJwt(customerId, action.getId())
             .flatMap(this::expireToken) // 기존 토큰이 있으면 만료시킨다.
@@ -39,7 +39,7 @@ public class TokenDomainService {
                 CustomerEntry entry = CustomerEntry.builder()
                     .actionId(action.getId())
                     .customerId(customerId)
-                    .landingDestinationUrl(action.getLandingDestinationUrl()) // 이 줄을 추가합니다.
+                    .landingDestinationUrl(landingDestinationUrl) // 이 줄을 수정합니다.
                     .timestamp(System.currentTimeMillis())
                     .build();
                 String jwt = jwtUtil.generateToken(entry);
