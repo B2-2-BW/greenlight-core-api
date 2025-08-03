@@ -39,7 +39,7 @@ public class TokenDomainService {
                 CustomerEntry entry = CustomerEntry.builder()
                     .actionId(action.getId())
                     .customerId(customerId)
-                    .destinationUrl(action.getLandingDestinationUrl()) // 이 줄을 추가합니다.
+                    .landingDestinationUrl(action.getLandingDestinationUrl()) // 이 줄을 추가합니다.
                     .timestamp(System.currentTimeMillis())
                     .build();
                 String jwt = jwtUtil.generateToken(entry);

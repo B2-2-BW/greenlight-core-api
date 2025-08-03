@@ -35,7 +35,6 @@ public class QueueController {
         if (request.getActionId() == null) {
             return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "actionId is required."));
         }
-
-        return queueApplicationService.checkOrEnterQueue(request.getActionId(), greenlightToken, request.getRequestParams());
+        return queueApplicationService.checkOrEnterQueue(request.getActionId(), request.getLandingDestinationUrl(), greenlightToken, request.getRequestParams());
     }
 }

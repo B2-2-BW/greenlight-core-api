@@ -34,7 +34,7 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         claims.put("actionId", entry.getActionId());
         claims.put("customerId", entry.getCustomerId());
-        claims.put("destinationUrl", entry.getDestinationUrl());
+        claims.put("landingDestinationUrl", entry.getLandingDestinationUrl());
         claims.put("timestamp", entry.getTimestamp());
 
         return createToken(claims, entry.getCustomerId());
@@ -98,10 +98,10 @@ public class JwtUtil {
     public EntryTicket getEntryTicketFromToken(String token) {
         Claims claims = extractAllClaims(token);
 
-        return EntryTicket.builder()
+                return EntryTicket.builder()
                 .actionId(claims.get("actionId", Long.class))
                 .customerId(claims.get("customerId", String.class))
-                .destinationUrl(claims.get("destinationUrl", String.class))
+                .landingDestinationUrl(claims.get("landingDestinationUrl", String.class))
                 .timestamp(claims.get("timestamp", Long.class))
                 .build();
     }
