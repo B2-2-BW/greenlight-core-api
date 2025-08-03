@@ -27,7 +27,7 @@ public class RedisTemplateConfig {
     }
 
     @Bean
-    public ReactiveRedisTemplate<String, Object> reactiveEventRedisTemplate(LettuceConnectionFactory factory, ObjectMapper objectMapper) {
+    public ReactiveRedisTemplate<String, Object> reactiveJsonRedisTemplate(LettuceConnectionFactory factory, ObjectMapper objectMapper) {
         var keySerializer = new StringRedisSerializer();
         var jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 

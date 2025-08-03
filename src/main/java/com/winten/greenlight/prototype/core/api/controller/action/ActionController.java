@@ -1,15 +1,16 @@
 package com.winten.greenlight.prototype.core.api.controller.action;
 
-import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
+import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
+import com.winten.greenlight.prototype.core.support.publisher.ActionEvent;
+import com.winten.greenlight.prototype.core.support.publisher.ActionEventPublisher;
+import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
 
 /**
  * Action, ActionGroup 조회 및 캐시 초기화 컨트롤러. 기능이 많지 않아서 하나의 컨트롤러로 합쳤음
@@ -20,6 +21,7 @@ import java.util.List;
 public class ActionController {
     private final CachedActionService cachedActionService;
     private final ActionDomainService actionDomainService;
+    private final ActionEventPublisher actionEventPublisher;
 
     @GetMapping("/action-groups/{actionGroupId}")
     public Mono<ResponseEntity<ActionGroupResponse>> getActionGroupById(@PathVariable final Long actionGroupId) {
@@ -53,5 +55,20 @@ public class ActionController {
     ) {
         return actionDomainService.getActionsFromApiKey(greenlightApiKey)
                 .map(ActionResponse::from);
+    }
+
+    @GetMapping("/test")
+    public Mono<Object> test() {
+        var actionEvent = ActionEvent.builder()
+                .waitStatus(WaitStatus.WAITING)
+                .actionId(11L)
+                .actionGroupId(7L)
+                .customerId(11L + ":" + TSID.fast())
+                .build();
+        return actionEventPublisher.publish(actionEvent)
+                .map(recordId -> {
+                    actionEvent.setRecordId(recordId.toString());
+                    return actionEvent;
+                });
     }
 }

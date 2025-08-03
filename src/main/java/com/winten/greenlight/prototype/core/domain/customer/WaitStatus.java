@@ -26,7 +26,12 @@ public enum WaitStatus {
     /**
      * 비활성화: 액션 또는 액션 그룹이 현재 비활성화된 상태입니다.
      */
-    DISABLED("비활성화")
+    DISABLED("비활성화"),
+
+    /**
+     * 대기 중 취소: 사용자가 대기 중 입장을 포기하고 나간 상태입니다.
+     */
+    CANCELLED("대기 중 취소")
     ;
 
     private final String description; // 상태에 대한 설명

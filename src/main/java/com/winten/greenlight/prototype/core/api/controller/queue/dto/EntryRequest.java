@@ -13,5 +13,4 @@ import java.util.Map;
 @AllArgsConstructor
 public class EntryRequest {
     private Long actionId;
-    private Map<String, String> requestParams;
 }

@@ -1,20 +1,43 @@
 package com.winten.greenlight.prototype.core.api.controller.customer;
 
-import com.winten.greenlight.prototype.core.domain.customer.CustomerEntry;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.winten.greenlight.prototype.core.domain.customer.Customer;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class TicketVerificationResponse {
     private Long actionId;
+    private Long actionGroupId;
     private String customerId;
     private Boolean verified;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String reason;
 
-    public static TicketVerificationResponse of(CustomerEntry entry) {
-        var res = new TicketVerificationResponse();
-        res.setActionId(entry.getActionId());
-        res.setCustomerId(entry.getCustomerId());
-        return res;
+    public static TicketVerificationResponse success(Customer customer) {
+        return TicketVerificationResponse.builder()
+                .actionId(customer.getActionId())
+                .actionGroupId(customer.getActionGroupId())
+                .customerId(customer.getCustomerId())
+                .verified(true)
+                .build();
+    }
+    public static TicketVerificationResponse fail(Customer customer) {
+        return TicketVerificationResponse.fail(customer, null);
+    }
+
+    public static TicketVerificationResponse fail(Customer customer, String reason) {
+        return TicketVerificationResponse.builder()
+                .actionId(customer.getActionId())
+                .actionGroupId(customer.getActionGroupId())
+                .customerId(customer.getCustomerId())
+                .verified(false)
+                .reason(reason)
+                .build();
     }
 }
