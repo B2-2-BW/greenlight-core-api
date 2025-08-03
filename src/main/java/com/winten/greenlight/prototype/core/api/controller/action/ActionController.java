@@ -1,9 +1,11 @@
 package com.winten.greenlight.prototype.core.api.controller.action;
 
+import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -14,13 +16,14 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class ActionController {
     private final CachedActionService cachedActionService;
+    private final ActionDomainService actionDomainService;
 
     @GetMapping("/action-groups/{actionGroupId}")
     public Mono<ResponseEntity<ActionGroupResponse>> getActionGroupById(@PathVariable final Long actionGroupId) {
         return cachedActionService.getActionGroupById(actionGroupId)
                 .flatMap(action -> Mono.just(ResponseEntity.ok(ActionGroupResponse.from(action))));
     }
-    
+
     @GetMapping("/actions/{actionId}")
     public Mono<ResponseEntity<ActionResponse>> getActionById(@PathVariable final Long actionId) {
         return cachedActionService.getActionById(actionId)
@@ -42,8 +45,16 @@ public class ActionController {
     }
 
     @GetMapping("/actions/{actionId}/enabled")
-    public Mono<ResponseEntity<Boolean>> isActionEnabled(@PathVariable final Long actionId) {
+    public Mono<ResponseEntity<Boolean>> isActionEnabled( @PathVariable final Long actionId) {
         return cachedActionService.isActionEnabled(actionId)
                 .map(ResponseEntity::ok);
+    }
+
+    @GetMapping("/actions")
+    public Flux<ActionResponse> getActionGroupByKey(
+            @RequestHeader("X-GREENLIGHT-API-KEY") String greenlightApiKey
+    ) {
+        return actionDomainService.getActionsFromApiKey(greenlightApiKey)
+                .map(ActionResponse::from);
     }
 }
