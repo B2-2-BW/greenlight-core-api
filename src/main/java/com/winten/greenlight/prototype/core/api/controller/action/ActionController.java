@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.core.api.controller.action;
 
+import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 /**
  * Action, ActionGroup 조회 및 캐시 초기화 컨트롤러. 기능이 많지 않아서 하나의 컨트롤러로 합쳤음

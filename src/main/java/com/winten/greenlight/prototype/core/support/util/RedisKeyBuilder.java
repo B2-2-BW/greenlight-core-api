@@ -46,4 +46,12 @@ public class RedisKeyBuilder {
     public String waitingQueue(Long actionGroupId) {
         return String.format("%s:action_group:%d:queue:%s", prefix, actionGroupId, WaitStatus.WAITING);
     }
+
+    public String userApiKey() {
+        return "greenlight:admin:user_api_key";
+    }
+
+    public String allActions() {
+        return "greenlight:action:*";
+    }
 }

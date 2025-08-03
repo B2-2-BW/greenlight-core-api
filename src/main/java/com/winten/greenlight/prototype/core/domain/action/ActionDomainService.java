@@ -2,6 +2,8 @@ package com.winten.greenlight.prototype.core.domain.action;
 
 import com.winten.greenlight.prototype.core.db.repository.redis.action.ActionRepository;
 import com.winten.greenlight.prototype.core.db.repository.redis.action.ActionRuleRepository;
+import com.winten.greenlight.prototype.core.support.error.CoreException;
+import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -36,4 +38,14 @@ public class ActionDomainService {
         return Mono.just(true);
     }
 
+    public Flux<Action> getActionsFromApiKey(String greenlightApiKey) {
+        return actionRepository.getUserApiKey()
+                .switchIfEmpty(Mono.error(CoreException.of(ErrorType.REDIS_ERROR,"there is no cache userApiKey")))
+                .flatMapMany(value -> {
+                    if (!greenlightApiKey.equals(value)) {
+                        return Flux.error(CoreException.of(ErrorType.BAD_REQUEST, "Invalid Api Key"));
+                    }
+                    return actionRepository.getAllActions();
+                });
+    }
 }
