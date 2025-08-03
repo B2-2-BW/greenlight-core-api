@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
+import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
