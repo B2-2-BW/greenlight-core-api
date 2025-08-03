@@ -40,4 +40,10 @@ public class ActionController {
         return cachedActionService.invalidateActionCache(actionId)
                 .then(Mono.just(ResponseEntity.ok("ok")));
     }
+
+    @GetMapping("/actions/{actionId}/enabled")
+    public Mono<ResponseEntity<Boolean>> isActionEnabled(@PathVariable final Long actionId) {
+        return cachedActionService.isActionEnabled(actionId)
+                .map(ResponseEntity::ok);
+    }
 }

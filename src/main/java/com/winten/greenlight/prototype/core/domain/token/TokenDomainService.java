@@ -39,6 +39,7 @@ public class TokenDomainService {
                 CustomerEntry entry = CustomerEntry.builder()
                     .actionId(action.getId())
                     .customerId(customerId)
+                    .landingDestinationUrl(action.getLandingDestinationUrl()) // 이 줄을 추가합니다.
                     .timestamp(System.currentTimeMillis())
                     .build();
                 String jwt = jwtUtil.generateToken(entry);
@@ -90,5 +91,15 @@ public class TokenDomainService {
      */
     public Mono<Long> getActionIdFromToken(String token) {
         return Mono.justOrEmpty(jwtUtil.extractActionId(token));
+    }
+
+    /**
+     * JWT 토큰에서 customerId를 추출합니다.
+     *
+     * @param token JWT 토큰 문자열
+     * @return 추출된 customerId (없으면 null)
+     */
+    public String extractCustomerId(String token) {
+        return jwtUtil.extractCustomerId(token);
     }
 }
