@@ -75,4 +75,9 @@ public class ActionRepository {
                 )
                 .map(map -> objectMapper.convertValue(map, Action.class));
     }
+
+    public Mono<String> getActionIdByLandingId(String landingId) {
+        var key = keyBuilder.landingCacheKey(landingId);
+        return stringRedisTemplate.opsForValue().get(key);
+    }
 }

@@ -1,7 +1,6 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
-import com.winten.greenlight.prototype.core.domain.action.Action;
-import com.winten.greenlight.prototype.core.domain.action.ActionDomainService;
+import com.winten.greenlight.prototype.core.domain.action.ActionService;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
@@ -27,7 +26,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class QueueApplicationService {
 
-    private final ActionDomainService actionDomainService;
     private final QueueDomainService queueDomainService;
     private final RuleMatcher ruleMatcher;
     private final TokenDomainService tokenDomainService;
@@ -53,9 +51,9 @@ public class QueueApplicationService {
                 }
 
                 // 2. 액션이 비활성화된 경우, DISABLED 처리
-                return actionDomainService.isActionEffectivelyEnabled(action)
-                    .flatMap(isEnabled -> {
-                        if (!isEnabled) {
+                return cachedActionService.getActionGroupById(action.getActionGroupId())
+                    .flatMap(actionGroup -> {
+                        if (!actionGroup.getEnabled()) {
                             return Mono.just(new EntryTicket(action.getId(), null, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.DISABLED, null));
                         }
 

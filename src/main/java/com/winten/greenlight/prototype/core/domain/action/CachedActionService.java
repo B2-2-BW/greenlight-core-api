@@ -24,6 +24,7 @@ public class CachedActionService {
         // 실제 구현은 DB 조회 로직
         return actionRepository.findByUrl(url);
     }
+
     @CacheEvict(cacheNames = "action", key = "#actionId")
     public Mono<Void> invalidateActionCache(Long actionId) {
         return Mono.empty();
@@ -40,8 +41,14 @@ public class CachedActionService {
         return Mono.empty();
     }
 
-    public Mono<Boolean> isActionEnabled(Long actionId) {
-        return getActionById(actionId)
-                .map(Action::isEnabled);
+    @Cacheable(cacheNames = "landingActionMapping", key = "#landingId")
+    public Mono<Action> getActionByLandingId(String landingId) {
+        return actionRepository.getActionIdByLandingId(landingId)
+                .flatMap(actionId -> getActionById(Long.valueOf(actionId)));
+    }
+
+    @CacheEvict(cacheNames = "landingActionMapping", key = "#landingId")
+    public Mono<Void> invalidateLandingActionMappingCache(String landingId) {
+        return Mono.empty();
     }
 }

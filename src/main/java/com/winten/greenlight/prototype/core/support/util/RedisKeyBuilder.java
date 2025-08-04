@@ -60,4 +60,8 @@ public class RedisKeyBuilder {
     public String actionEventStream() {
         return prefix + ":infra:action_event:stream";
     }
+
+    public String landingCacheKey(String landingId) {
+        return prefix + ":landing_action_mapping:" + landingId;
+    }
 }
