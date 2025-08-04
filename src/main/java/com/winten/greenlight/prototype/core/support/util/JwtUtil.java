@@ -35,7 +35,7 @@ public class JwtUtil {
         claims.put("actionGroupId", entry.getActionGroupId());
         claims.put("actionId", entry.getActionId());
         claims.put("customerId", entry.getCustomerId());
-        claims.put("destinationUrl", entry.getDestinationUrl());
+        claims.put("landingDestinationUrl", entry.getLandingDestinationUrl());
         claims.put("timestamp", entry.getTimestamp());
 
         return createToken(claims, entry.getCustomerId());
@@ -98,14 +98,12 @@ public class JwtUtil {
     // 토큰에서 CustomerEntry 객체 생성
     public Customer getCustomerFromToken(String token) {
         Claims claims = extractAllClaims(token);
-
         return Customer.builder()
                 .actionGroupId(claims.get("actionGroupId", Long.class))
                 .actionId(claims.get("actionId", Long.class))
                 .customerId(claims.get("customerId", String.class))
                 .destinationUrl(claims.get("destinationUrl", String.class))
                 .score(claims.get("timestamp", Long.class))
-                .build();
     }
 
     // 토큰에서 특정 클레임 값 추출

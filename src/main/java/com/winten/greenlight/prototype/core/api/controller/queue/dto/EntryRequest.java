@@ -13,4 +13,5 @@ import java.util.Map;
 @AllArgsConstructor
 public class EntryRequest {
     private Long actionId;
+    private String landingDestinationUrl;
 }

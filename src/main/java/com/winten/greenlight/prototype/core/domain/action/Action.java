@@ -51,6 +51,11 @@ public class Action extends AuditDto implements Hashable {
     private String name;
 
     /**
+     * Action의 활성화 여부입니다. true이면 활성화, false이면 비활성화됩니다.
+     */
+    private boolean enabled;
+
+    /**
      * 대기열을 트리거할 대상 URL의 경로(Path)입니다.
      * 쿼리 파라미터는 제외하며, 세부 조건은 {@link ActionRule}을 통해 정의됩니다. (예: "/products/detail")
      * {@code actionType}이 {@link ActionType#DIRECT}일 때 사용됩니다.

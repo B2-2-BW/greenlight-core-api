@@ -28,7 +28,7 @@ public class ActionController {
         return cachedActionService.getActionGroupById(actionGroupId)
                 .flatMap(action -> Mono.just(ResponseEntity.ok(ActionGroupResponse.from(action))));
     }
-    
+
     @GetMapping("/actions/{actionId}")
     public Mono<ResponseEntity<ActionResponse>> getActionById(@PathVariable final Long actionId) {
         return cachedActionService.getActionById(actionId)
@@ -47,6 +47,12 @@ public class ActionController {
     public Mono<ResponseEntity<String>> invalidateActionCache(@PathVariable final Long actionId) {
         return cachedActionService.invalidateActionCache(actionId)
                 .then(Mono.just(ResponseEntity.ok("ok")));
+    }
+
+    @GetMapping("/actions/{actionId}/enabled")
+    public Mono<ResponseEntity<Boolean>> isActionEnabled( @PathVariable final Long actionId) {
+        return cachedActionService.isActionEnabled(actionId)
+                .map(ResponseEntity::ok);
     }
 
     @GetMapping("/actions")

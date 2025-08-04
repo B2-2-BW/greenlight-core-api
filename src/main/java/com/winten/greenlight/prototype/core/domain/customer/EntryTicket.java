@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class EntryTicket {
     private Long actionId;
     private String customerId;
-    private String destinationUrl;
+    private String landingDestinationUrl;
     private Long timestamp;
     private WaitStatus waitStatus;
     private String jwtToken; 

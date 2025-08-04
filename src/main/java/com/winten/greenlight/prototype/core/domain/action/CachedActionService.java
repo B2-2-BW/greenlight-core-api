@@ -39,4 +39,9 @@ public class CachedActionService {
     public Mono<Void> invalidateActionGroupCache(Long actionGroupId) {
         return Mono.empty();
     }
+
+    public Mono<Boolean> isActionEnabled(Long actionId) {
+        return getActionById(actionId)
+                .map(Action::isEnabled);
+    }
 }

@@ -29,12 +29,12 @@ public class TokenDomainService {
      * @param status     토큰의 초기 상태 (예: "WAITING", "ALLOWED")
      * @return Mono<String> 발급된 JWT 토큰 문자열
      */
-    public Mono<String> issueToken(String customerId, Action action, String status) {
+    public Mono<String> issueToken(String customerId, Action action, String status, String landingDestinationUrl) {
         var entry = CustomerEntry.builder()
                 .actionGroupId(action.getActionGroupId())
                 .actionId(action.getId())
                 .customerId(customerId)
-                .destinationUrl(action.getLandingDestinationUrl()) // 이 줄을 추가합니다.
+                .destinationUrl(landingDestinationUrl) // 이 줄을 추가합니다.
                 .timestamp(System.currentTimeMillis())
                 .build();
         return Mono.just(jwtUtil.generateToken(entry));
