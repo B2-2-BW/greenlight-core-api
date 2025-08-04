@@ -16,4 +16,5 @@ public class Customer {
     private Long score;
     private WaitStatus waitStatus;
     private String destinationUrl;
+    private Long waitTimeMs;
 }

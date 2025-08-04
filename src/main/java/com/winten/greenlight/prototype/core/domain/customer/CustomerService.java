@@ -3,10 +3,8 @@ package com.winten.greenlight.prototype.core.domain.customer;
 import com.winten.greenlight.prototype.core.api.controller.customer.TicketVerificationResponse;
 import com.winten.greenlight.prototype.core.db.repository.redis.customer.CustomerRepository;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
-import com.winten.greenlight.prototype.core.domain.queue.CustomerQueueInfo;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
-import com.winten.greenlight.prototype.core.support.publisher.ActionEvent;
 import com.winten.greenlight.prototype.core.support.publisher.ActionEventPublisher;
 import com.winten.greenlight.prototype.core.support.util.JwtUtil;
 import io.micrometer.observation.ObservationRegistry;
@@ -36,7 +34,9 @@ public class CustomerService {
             return Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다."));
         }
         var customer = jwtUtil.getCustomerFromToken(token);
-        customer.setScore(System.currentTimeMillis());
+        var now = System.currentTimeMillis();
+        var waitTimeMs = now - customer.getScore();
+        customer.setScore(now);
         return customerRepository.isCustomerReady(customer)
                 .flatMap(isReady -> {
                     if (!isReady) {
@@ -46,6 +46,7 @@ public class CustomerService {
                             .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
                             .then(Mono.defer(() -> {
                                 customer.setWaitStatus(WaitStatus.ENTERED);
+                                customer.setWaitTimeMs(waitTimeMs);
                                 return actionEventPublisher.publish(customer);
                             }))
                             .then(Mono.just(TicketVerificationResponse.success(customer)));
@@ -53,5 +54,19 @@ public class CustomerService {
                 .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(customer, "유효한 고객 ID를 찾을 수 없습니다.")))
                 .onErrorResume(e -> Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e.getMessage())))
                 ;
+    }
+
+    public Mono<Long> deleteCustomerFromQueue(String token) {
+        if (!jwtUtil.isTokenValid(token)) {
+            return Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다."));
+        }
+        var customer = jwtUtil.getCustomerFromToken(token);
+        return customerRepository.deleteCustomer(customer, WaitStatus.WAITING)
+                .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
+                .then(Mono.defer(() -> {
+                    customer.setWaitStatus(WaitStatus.ENTERED);
+                    return actionEventPublisher.publish(customer);
+                }))
+                .then(Mono.just(1L));
     }
 }

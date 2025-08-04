@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
-//@RestController
-//@RequestMapping("/health")
+@RestController
+@RequestMapping("/health")
 public class HealthController {
     @GetMapping("")
     public Mono<ResponseEntity<?>> health() {

@@ -106,7 +106,7 @@ public class QueueApplicationService {
                             return tokenDomainService.issueToken(customerId, action, WaitStatus.WAITING.name(), landingDestinationUrl)
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.WAITING)
-                                            .flatMap(result -> actionEventPublisher.publish(WaitStatus.WAITING, actionGroupId, actionId, customerId, System.currentTimeMillis()))
+                                            .then(actionEventPublisher.publish(WaitStatus.WAITING, actionGroupId, actionId, customerId, System.currentTimeMillis()))
                                             .thenReturn(new EntryTicket(action.getId(), customerId, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.WAITING, newJwt))
                                 );
                         } else {
