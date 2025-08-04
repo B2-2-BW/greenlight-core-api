@@ -3,6 +3,7 @@ package com.winten.greenlight.prototype.core.domain.action;
 /**
  * Action의 동작 방식을 정의하는 타입입니다.
  * 사용자가 어떤 경로로 대기열 시스템을 마주하게 되는지를 결정합니다.
+ * @version 1.0
  */
 public enum ActionType {
 

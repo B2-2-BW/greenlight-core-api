@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/health")
 public class HealthController {
     @GetMapping("")
-    public Mono<ResponseEntity<?>> health() {
-        return Mono.just(ResponseEntity.ok().build());
+    public Mono<ResponseEntity<String>> health() {
+        return Mono.just(ResponseEntity.ok("ok"));
     }
 }

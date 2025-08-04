@@ -3,6 +3,7 @@ package com.winten.greenlight.prototype.core.domain.action;
 /**
  * {@code ActionRule}에서 요청 파라미터와 설정된 값을 비교할 때 사용할 연산자입니다.
  * 규칙의 매칭 논리를 정의합니다.
+ * @version 1.0
  */
 public enum MatchOperator {
 

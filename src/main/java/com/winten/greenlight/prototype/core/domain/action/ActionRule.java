@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
  * 요청의 쿼리 파라미터를 검사하여 대기열을 적용할지(INCLUDE), 또는 제외할지(EXCLUDE)를 판단하는 데 사용됩니다.
  *
  * @see Action#getDefaultRuleType() Action.defaultRuleType은 이 규칙이 어떻게 해석될지 결정합니다.
+ * @version 1.0
  */
 @Data
 @AllArgsConstructor

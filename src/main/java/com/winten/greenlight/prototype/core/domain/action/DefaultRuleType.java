@@ -3,6 +3,7 @@ package com.winten.greenlight.prototype.core.domain.action;
 /**
  * Action에 연결된 규칙({@code ActionRule})들을 어떤 방식으로 평가할지 결정하는 전략입니다.
  * 규칙이 없는 경우 또는 여러 규칙이 있을 때의 기본 동작을 정의합니다.
+ * @version 1.0
  */
 public enum DefaultRuleType {
 

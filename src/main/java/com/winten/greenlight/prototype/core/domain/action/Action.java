@@ -18,6 +18,7 @@ import java.util.List;
  *
  * @see ActionGroup ActionGroup은 이 Action이 속한 그룹을 정의합니다.
  * @see ActionRule ActionRule은 이 Action에 적용될 세부 규칙을 정의합니다.
+ * @version 1.0
  */
 @Data
 @AllArgsConstructor

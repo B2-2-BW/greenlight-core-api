@@ -13,6 +13,7 @@ import lombok.experimental.SuperBuilder;
  * 여러 {@link Action}을 묶어 공통된 자원 및 정책을 관리하는 그룹입니다.
  * 주로 성격이 유사한 Action들을 그룹으로 관리하여,
  * 그룹 단위로 동시 활성 사용자 수를 제어하는 데 사용됩니다.
+ * @version 1.0
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
