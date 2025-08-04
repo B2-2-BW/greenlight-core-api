@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/action")
+@RequestMapping("/api/v1/customer")
 @RequiredArgsConstructor
 public class CustomerController {
     private final CustomerService customerService;
@@ -30,9 +30,17 @@ public class CustomerController {
     //  2. 입장권 검증요청
     @PostMapping("verify")
     public Mono<ResponseEntity<TicketVerificationResponse>> verifyTicket(
-            @RequestHeader(name = "X-GREENLIGHT-TOKEN") String greenlightToken
+            @RequestHeader(name = "X-GREENLIGHT-TOKEN") String token
     ) {
-        return customerService.verifyTicket(greenlightToken)
+        return customerService.verifyTicket(token)
                 .map(ResponseEntity::ok);
+    }
+
+    @DeleteMapping()
+    public Mono<ResponseEntity<Void>> deleteCustomer(
+            @RequestHeader(name = "X-GREENLIGHT-TOKEN") String token
+    ) {
+        return customerService.deleteCustomerFromQueue(token)
+                .thenReturn(ResponseEntity.ok().build());
     }
 }

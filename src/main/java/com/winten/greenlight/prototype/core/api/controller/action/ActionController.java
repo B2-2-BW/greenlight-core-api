@@ -62,19 +62,4 @@ public class ActionController {
         return actionDomainService.getActionsFromApiKey(greenlightApiKey)
                 .map(ActionResponse::from);
     }
-
-    @GetMapping("/test")
-    public Mono<Object> test() {
-        var actionEvent = ActionEvent.builder()
-                .waitStatus(WaitStatus.WAITING)
-                .actionId(11L)
-                .actionGroupId(7L)
-                .customerId(11L + ":" + TSID.fast())
-                .build();
-        return actionEventPublisher.publish(actionEvent)
-                .map(recordId -> {
-                    actionEvent.setRecordId(recordId.toString());
-                    return actionEvent;
-                });
-    }
 }

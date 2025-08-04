@@ -29,7 +29,12 @@ public class CustomerRepository {
                 .onErrorResume(e -> Mono.error(CoreException.of(ErrorType.REDIS_ERROR, e.getMessage())));
     }
 
-
+    /**
+     * 대기열에서 고객 삭제처리
+     * @param customer actionGroupId 및 customerId 필수
+     * @param waitStatus
+     * @return
+     */
     public Mono<Long> deleteCustomer(Customer customer, WaitStatus waitStatus) {
         String key = keyBuilder.queue(customer.getActionGroupId(), waitStatus);
         return redisTemplate.opsForZSet().remove(key, customer.getCustomerId());
@@ -38,8 +43,7 @@ public class CustomerRepository {
     public Mono<Boolean> isCustomerReady(Customer customer) {
         String key = keyBuilder.queue(customer.getActionGroupId(), WaitStatus.READY);
         return redisTemplate.opsForZSet().rank(key, customer.getCustomerId())
-                .map(rank -> rank >= 0)
-                ;
+                .map(rank -> rank >= 0);
     }
 
 }
