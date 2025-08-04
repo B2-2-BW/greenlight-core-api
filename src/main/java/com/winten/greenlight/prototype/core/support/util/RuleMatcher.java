@@ -20,12 +20,9 @@ public class RuleMatcher {
         DefaultRuleType defaultRule = action.getDefaultRuleType();
 
         // DefaultRuleType.ALL: 모든 요청에 대기열을 적용합니다. (규칙 무시)
-        if (defaultRule == DefaultRuleType.ALL) {
+        if (defaultRule == DefaultRuleType.ALL || requestParams == null) {
             return true;
-        }
-
-        // DefaultRuleType.INCLUDE: 규칙 중 하나라도 일치할 경우에만 대기열을 적용합니다.
-        if (defaultRule == DefaultRuleType.INCLUDE) {
+        } else if (defaultRule == DefaultRuleType.INCLUDE) { // DefaultRuleType.INCLUDE: 규칙 중 하나라도 일치할 경우에만 대기열을 적용합니다.
             for (ActionRule rule : rules) {
                 String requestValue = requestParams.get(rule.getParamName());
                 if (requestValue != null && this.matches(requestValue, rule.getParamValue(), rule.getMatchOperator())) {
@@ -33,10 +30,7 @@ public class RuleMatcher {
                 }
             }
             return false; // 어떤 규칙에도 일치하지 않음 -> 대기열 미적용
-        }
-
-        // DefaultRuleType.EXCLUDE: 규칙 중 하나라도 일치할 경우 대기열을 적용하지 않습니다.
-        if (defaultRule == DefaultRuleType.EXCLUDE) {
+        } else if (defaultRule == DefaultRuleType.EXCLUDE) { // DefaultRuleType.EXCLUDE: 규칙 중 하나라도 일치할 경우 대기열을 적용하지 않습니다.
             for (ActionRule rule : rules) {
                 String requestValue = requestParams.get(rule.getParamName());
                 if (requestValue != null && this.matches(requestValue, rule.getParamValue(), rule.getMatchOperator())) {
@@ -45,7 +39,6 @@ public class RuleMatcher {
             }
             return true; // 어떤 규칙에도 일치하지 않음 -> 대기열 적용
         }
-
         return true; // 안전을 위해, 정의되지 않은 정책은 모두 대기열 적용
     }
 
@@ -67,4 +60,3 @@ public class RuleMatcher {
         }
     }
 }
-

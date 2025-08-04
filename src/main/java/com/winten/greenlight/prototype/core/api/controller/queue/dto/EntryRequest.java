@@ -14,5 +14,4 @@ import java.util.Map;
 public class EntryRequest {
     private Long actionId;
     private String landingDestinationUrl;
-    private Map<String, String> requestParams;
 }

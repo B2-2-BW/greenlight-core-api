@@ -3,7 +3,6 @@ package com.winten.greenlight.prototype.core.domain.token;
 import com.winten.greenlight.prototype.core.db.repository.redis.token.TokenRepository;
 import com.winten.greenlight.prototype.core.domain.customer.CustomerEntry;
 import com.winten.greenlight.prototype.core.domain.action.Action;
-import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.support.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,28 +30,36 @@ public class TokenDomainService {
      * @return Mono<String> 발급된 JWT 토큰 문자열
      */
     public Mono<String> issueToken(String customerId, Action action, String status, String landingDestinationUrl) {
+        var entry = CustomerEntry.builder()
+                .actionGroupId(action.getActionGroupId())
+                .actionId(action.getId())
+                .customerId(customerId)
+                .destinationUrl(landingDestinationUrl) // 이 줄을 추가합니다.
+                .timestamp(System.currentTimeMillis())
+                .build();
+        return Mono.just(jwtUtil.generateToken(entry));
         // 시나리오 1: 기존 토큰을 찾아 만료시키는 로직
-        return findValidTokenJwt(customerId, action.getId())
-            .flatMap(this::expireToken) // 기존 토큰이 있으면 만료시킨다.
-            .then(Mono.defer(() -> {
-                // 새로운 토큰 생성
-                CustomerEntry entry = CustomerEntry.builder()
-                    .actionId(action.getId())
-                    .customerId(customerId)
-                    .landingDestinationUrl(landingDestinationUrl) // 이 줄을 수정합니다.
-                    .timestamp(System.currentTimeMillis())
-                    .build();
-                String jwt = jwtUtil.generateToken(entry);
-
-                Map<String, String> metadata = Map.of(
-                    "customerId", customerId,
-                    "actionId", String.valueOf(action.getId()),
-                    "status", status
-                );
-
-                // Redis에 토큰 메타데이터 저장 및 TTL 설정 (시나리오 2는 Repository에서 처리)
-                return tokenRepository.saveTokenMetadata(jwt, metadata).thenReturn(jwt);
-            }));
+//        return findValidTokenJwt(customerId, action.getId())
+//            .flatMap(this::expireToken) // 기존 토큰이 있으면 만료시킨다.
+//            .then(Mono.defer(() -> {
+//                // 새로운 토큰 생성
+//                CustomerEntry entry = CustomerEntry.builder()
+//                    .actionId(action.getId())
+//                    .customerId(customerId)
+//                    .destinationUrl(action.getLandingDestinationUrl()) // 이 줄을 추가합니다.
+//                    .timestamp(System.currentTimeMillis())
+//                    .build();
+//                String jwt = jwtUtil.generateToken(entry);
+//
+//                Map<String, String> metadata = Map.of(
+//                    "customerId", customerId,
+//                    "actionId", String.valueOf(action.getId()),
+//                    "status", status
+//                );
+//
+//                // Redis에 토큰 메타데이터 저장 및 TTL 설정 (시나리오 2는 Repository에서 처리)
+//                return tokenRepository.saveTokenMetadata(jwt, metadata).thenReturn(jwt);
+//            }));
     }
 
     /**
@@ -80,7 +87,7 @@ public class TokenDomainService {
         return tokenRepository.findJwtByCustomerIdAndActionId(customerId, actionId)
             .flatMap(jwt ->
                 // 조회된 JWT가 JwtUtil을 통해 유효성 검증을 통과하는지 확인합니다.
-                jwtUtil.validateToken(jwt) ? Mono.just(jwt) : Mono.empty());
+                jwtUtil.isTokenValid(jwt) ? Mono.just(jwt) : Mono.empty());
     }
 
     /**

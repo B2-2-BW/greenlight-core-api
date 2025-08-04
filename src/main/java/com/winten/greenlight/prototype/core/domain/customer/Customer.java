@@ -10,8 +10,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Customer {
+    private Long actionGroupId;
     private Long actionId;
     private String customerId;
     private Long score;
     private WaitStatus waitStatus;
+    private String destinationUrl;
 }

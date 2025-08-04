@@ -11,32 +11,34 @@ public class RedisKeyBuilder {
     @Value("${redis.key-prefix}")
     private String prefix;
 
+    // TODO 한눈에 보기 쉽게 완성된 full string을 주석에 추가하기
     public String actionGroupMeta(Long actionGroupId) {
-        return String.format("%s:action_group:%d:meta", prefix, actionGroupId);
+        return prefix + ":action_group:" + actionGroupId + ":meta";
     }
 
     public String actionGroupStatus(Long actionGroupId) {
-        return String.format("%s:action_group:%d:status", prefix, actionGroupId);
+        return prefix + ":action_group:" + actionGroupId + ":status";
     }
 
     public String action(Long actionId) {
-        return String.format("%s:action:%d", prefix, actionId);
+        return prefix + ":action:" + actionId;
     }
 
     public String accessLog(Long actionGroupId) {
-        return String.format("%s:action_group:%d:accesslog", prefix, actionGroupId);
+        return prefix + ":action_group:" + actionGroupId + ":accesslog";
     }
     public String queue(Long actionGroupId, WaitStatus waitStatus) {
-        return String.format("%s:action_group:%d:queue:%s", prefix, actionGroupId, waitStatus);
+        return prefix + ":action_group:" + actionGroupId + ":queue:" + waitStatus;
     }
     // 활성 사용자 수를 저장하는 ZSET의 키
     public String activeUsers(Long actionGroupId) {
-        return String.format("%s:action_group:%d:active_users", prefix, actionGroupId);
+        return prefix + ":action_group:" + actionGroupId + ":active_users";
     }
     // 토큰 메타데이터를 저장하는 Hash의 키
     public String token(String jwt) {
-        return String.format("%s:token:%s", prefix, jwt);
+        return prefix + ":token:" + jwt;
     }
+
     // customerId와 actionId로 JWT를 찾는 인덱스 키 (String)
     public String customerActionTokenIndex(String customerId, Long actionId) {
         return String.format("%s:customer:%s:action:%d:jwt", prefix, customerId, actionId);
@@ -44,14 +46,18 @@ public class RedisKeyBuilder {
     // 대기열 키 (기존 queue 메서드와 유사하지만, actionId를 직접 받도록)
     // 기존 queue(Long actionGroupId, WaitStatus waitStatus)와는 다름
     public String waitingQueue(Long actionGroupId) {
-        return String.format("%s:action_group:%d:queue:%s", prefix, actionGroupId, WaitStatus.WAITING);
+        return prefix + ":action_group:" + actionGroupId + ":queue:" + WaitStatus.WAITING;
     }
 
     public String userApiKey() {
-        return "greenlight:admin:user_api_key";
+        return prefix + ":admin:user_api_key";
     }
 
     public String allActions() {
-        return "greenlight:action:*";
+        return prefix + ":action:*";
+    }
+
+    public String actionEventStream() {
+        return prefix + ":infra:action_event:stream";
     }
 }

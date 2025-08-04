@@ -1,7 +1,7 @@
 package com.winten.greenlight.prototype.core.support.util;
 
+import com.winten.greenlight.prototype.core.domain.customer.Customer;
 import com.winten.greenlight.prototype.core.domain.customer.CustomerEntry;
-import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -32,6 +32,7 @@ public class JwtUtil {
     // UserInfo로부터 JWT 토큰 생성
     public String generateToken(CustomerEntry entry) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("actionGroupId", entry.getActionGroupId());
         claims.put("actionId", entry.getActionId());
         claims.put("customerId", entry.getCustomerId());
         claims.put("landingDestinationUrl", entry.getLandingDestinationUrl());
@@ -82,7 +83,7 @@ public class JwtUtil {
     }
 
     // 토큰 유효성 검증 (UserInfo 없이)
-    public Boolean validateToken(String token) {
+    public Boolean isTokenValid(String token) {
         try {
             Jwts.parser()
                     .verifyWith(getSigningKey())
@@ -95,15 +96,14 @@ public class JwtUtil {
     }
 
     // 토큰에서 CustomerEntry 객체 생성
-    public EntryTicket getEntryTicketFromToken(String token) {
+    public Customer getCustomerFromToken(String token) {
         Claims claims = extractAllClaims(token);
-
-                return EntryTicket.builder()
+        return Customer.builder()
+                .actionGroupId(claims.get("actionGroupId", Long.class))
                 .actionId(claims.get("actionId", Long.class))
                 .customerId(claims.get("customerId", String.class))
-                .landingDestinationUrl(claims.get("landingDestinationUrl", String.class))
-                .timestamp(claims.get("timestamp", Long.class))
-                .build();
+                .destinationUrl(claims.get("destinationUrl", String.class))
+                .score(claims.get("timestamp", Long.class))
     }
 
     // 토큰에서 특정 클레임 값 추출

@@ -7,6 +7,7 @@ import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
+import com.winten.greenlight.prototype.core.support.publisher.ActionEventPublisher;
 import com.winten.greenlight.prototype.core.support.util.RuleMatcher;
 import com.winten.greenlight.prototype.core.domain.token.TokenDomainService;
 import io.hypersistence.tsid.TSID;
@@ -31,6 +32,7 @@ public class QueueApplicationService {
     private final RuleMatcher ruleMatcher;
     private final TokenDomainService tokenDomainService;
     private final CachedActionService cachedActionService;
+    private final ActionEventPublisher actionEventPublisher;
 
     /**
      * 사용자의 대기열 상태를 확인하고, 현재 상태에 따라 적절한 응답을 반환합니다.
@@ -104,7 +106,8 @@ public class QueueApplicationService {
                             return tokenDomainService.issueToken(customerId, action, WaitStatus.WAITING.name(), landingDestinationUrl)
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.WAITING)
-                                        .thenReturn(new EntryTicket(action.getId(), customerId, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.WAITING, newJwt))
+                                            .flatMap(result -> actionEventPublisher.publish(WaitStatus.WAITING, actionGroupId, actionId, customerId, System.currentTimeMillis()))
+                                            .thenReturn(new EntryTicket(action.getId(), customerId, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.WAITING, newJwt))
                                 );
                         } else {
                             // 6. 대기가 필요 없는 경우: READY 토큰 발급 및 준비열 등록
@@ -125,7 +128,7 @@ public class QueueApplicationService {
      * @param actionId 액션 ID
      * @return Mono<String> 생성된 customerId
      */
-    private Mono<String> generateCustomerId(Long actionId) {
+    public Mono<String> generateCustomerId(Long actionId) {
         return Mono.fromCallable(() -> actionId + ":" + TSID.fast().toString());
     }
 }

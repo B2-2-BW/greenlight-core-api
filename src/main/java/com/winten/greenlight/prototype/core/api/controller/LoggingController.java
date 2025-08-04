@@ -28,7 +28,7 @@ public class LoggingController {
             }
             log.setUserIp(ip);
             return logManager.push(log)
-                    .onErrorMap(e -> new CoreException(ErrorType.DEFAULT_ERROR, "unknown error " + e));
+                    .onErrorMap(e -> new CoreException(ErrorType.INTERNAL_SERVER_ERROR, "unknown error " + e));
         });
     }
 }

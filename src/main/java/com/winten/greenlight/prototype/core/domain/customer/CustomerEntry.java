@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CustomerEntry {
+    private Long actionGroupId;
     private Long actionId;
     private String customerId;
     private String landingDestinationUrl;
