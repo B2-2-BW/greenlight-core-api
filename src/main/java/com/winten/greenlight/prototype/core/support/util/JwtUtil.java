@@ -102,7 +102,7 @@ public class JwtUtil {
                 .actionGroupId(claims.get("actionGroupId", Long.class))
                 .actionId(claims.get("actionId", Long.class))
                 .customerId(claims.get("customerId", String.class))
-                .destinationUrl(claims.get("destinationUrl", String.class))
+                .destinationUrl(claims.get("landingDestinationUrl", String.class))
                 .score(claims.get("timestamp", Long.class))
                 .build();
     }
