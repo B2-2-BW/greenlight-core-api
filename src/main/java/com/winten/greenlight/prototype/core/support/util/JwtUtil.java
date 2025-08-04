@@ -104,6 +104,7 @@ public class JwtUtil {
                 .customerId(claims.get("customerId", String.class))
                 .destinationUrl(claims.get("destinationUrl", String.class))
                 .score(claims.get("timestamp", Long.class))
+                .build();
     }
 
     // 토큰에서 특정 클레임 값 추출
