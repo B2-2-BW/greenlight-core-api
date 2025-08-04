@@ -34,7 +34,7 @@ public class TokenDomainService {
                 .actionGroupId(action.getActionGroupId())
                 .actionId(action.getId())
                 .customerId(customerId)
-                .destinationUrl(landingDestinationUrl) // 이 줄을 추가합니다.
+                .landingDestinationUrl(landingDestinationUrl) // 이 줄을 추가합니다.
                 .timestamp(System.currentTimeMillis())
                 .build();
         return Mono.just(jwtUtil.generateToken(entry));
