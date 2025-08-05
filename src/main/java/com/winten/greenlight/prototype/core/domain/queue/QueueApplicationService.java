@@ -1,6 +1,5 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
-import com.winten.greenlight.prototype.core.domain.action.ActionService;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
@@ -41,20 +40,20 @@ public class QueueApplicationService {
      * @param requestParams 사용자가 요청한 모든 쿼리 파라미터 맵 (ActionRule 검사에 사용)
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-        public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String landingDestinationUrl, String greenlightToken, Map<String, String> requestParams) {
+        public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String destinationUrl, String greenlightToken, Map<String, String> requestParams) {
         return cachedActionService.getActionById(actionId)
             .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
             .flatMap(action -> {
                 // 1. 큐 적용 대상이 아닌 경우, BYPASSED 처리
-                if (!ruleMatcher.isRequestSubjectToQueue(action, action.getActionRules(), requestParams)) {
-                    return Mono.just(new EntryTicket(action.getId(), null, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.BYPASSED, null));
-                }
+//                if (!ruleMatcher.isRequestSubjectToQueue(action, action.getActionRules(), requestParams)) {
+//                    return Mono.just(new EntryTicket(action.getId(), null, destinationUrl, System.currentTimeMillis(), WaitStatus.BYPASSED, null));
+//                }
 
                 // 2. 액션이 비활성화된 경우, DISABLED 처리
                 return cachedActionService.getActionGroupById(action.getActionGroupId())
                     .flatMap(actionGroup -> {
                         if (!actionGroup.getEnabled()) {
-                            return Mono.just(new EntryTicket(action.getId(), null, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.DISABLED, null));
+                            return Mono.just(new EntryTicket(action.getId(), null, destinationUrl, System.currentTimeMillis(), WaitStatus.DISABLED, null));
                         }
 
                         // 3. 토큰이 있는 경우, 이전 action의 토큰인지 여부 판단
@@ -64,20 +63,20 @@ public class QueueApplicationService {
                                     if (actionId.equals(tokenActionId)) {
                                         // 1-2. 만약 이전 action의 토큰이 아니라면, READY 상태 반환
                                         // 기존 토큰이 유효하고 현재 actionId와 일치하는 경우, 해당 토큰을 그대로 사용하며 EntryTicket의 모든 필드를 채웁니다.
-                                        return Mono.just(new EntryTicket(action.getId(), tokenDomainService.extractCustomerId(greenlightToken), landingDestinationUrl, System.currentTimeMillis(), WaitStatus.READY, greenlightToken));
+                                        return Mono.just(new EntryTicket(action.getId(), tokenDomainService.extractCustomerId(greenlightToken), destinationUrl, System.currentTimeMillis(), WaitStatus.READY, greenlightToken));
                                     } else {
                                         // 1-1. 만약 이전 action의 토큰이라면, waiting queue에 저장하는 로직 태운다.
-                                        return handleNewEntry(actionId, action.getActionGroupId(), landingDestinationUrl, action, requestParams);
+                                        return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams);
                                     }
                                 })
-                                .switchIfEmpty(handleNewEntry(actionId, action.getActionGroupId(), landingDestinationUrl, action, requestParams))
+                                .switchIfEmpty(handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams))
                                 .onErrorResume(e -> {
                                     // 토큰에서 actionId 추출 실패 시 신규 진입자로 처리
-                                    return handleNewEntry(actionId, action.getActionGroupId(), landingDestinationUrl, action, requestParams);
+                                    return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams);
                                 });
                         } else {
                             // 4. 토큰이 없는 신규 진입자 처리
-                            return handleNewEntry(actionId, action.getActionGroupId(), landingDestinationUrl, action, requestParams);
+                            return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams);
                         }
                     });
             });
@@ -89,30 +88,30 @@ public class QueueApplicationService {
      *
      * @param actionId 액션 ID
      * @param actionGroupId 액션 그룹 ID
-     * @param landingDestinationUrl 목적지 URL
+     * @param destinationUrl 목적지 URL
      * @param action Action 객체
      * @param requestParams 요청 파라미터 맵
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-    private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, String landingDestinationUrl, com.winten.greenlight.prototype.core.domain.action.Action action, Map<String, String> requestParams) {
+    private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, String destinationUrl, com.winten.greenlight.prototype.core.domain.action.Action action, Map<String, String> requestParams) {
         return generateCustomerId(actionId)
             .flatMap(customerId ->
                 queueDomainService.isWaitingRequired(actionGroupId)
                     .flatMap(isWaiting -> {
                         if (isWaiting) {
                             // 5. 대기가 필요한 경우: WAITING 토큰 발급 및 대기열 등록
-                            return tokenDomainService.issueToken(customerId, action, WaitStatus.WAITING.name(), landingDestinationUrl)
+                            return tokenDomainService.issueToken(customerId, action, WaitStatus.WAITING.name(), destinationUrl)
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.WAITING)
                                             .then(actionEventPublisher.publish(WaitStatus.WAITING, actionGroupId, actionId, customerId, System.currentTimeMillis()))
-                                            .thenReturn(new EntryTicket(action.getId(), customerId, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.WAITING, newJwt))
+                                            .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), WaitStatus.WAITING, newJwt))
                                 );
                         } else {
                             // 6. 대기가 필요 없는 경우: READY 토큰 발급 및 준비열 등록
-                            return tokenDomainService.issueToken(customerId, action, WaitStatus.READY.name(), landingDestinationUrl)
+                            return tokenDomainService.issueToken(customerId, action, WaitStatus.READY.name(), destinationUrl)
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.READY)
-                                        .thenReturn(new EntryTicket(action.getId(), customerId, landingDestinationUrl, System.currentTimeMillis(), WaitStatus.READY, newJwt))
+                                        .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), WaitStatus.READY, newJwt))
                                 );
                         }
                     })
