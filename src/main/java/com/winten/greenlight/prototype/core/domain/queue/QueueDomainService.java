@@ -49,9 +49,9 @@ public class QueueDomainService {
      * @param status 대기열의 상태 (WAITING or READY)
      * @return Mono<Long> 대기열에 추가된 후의 순번 (0부터 시작)
      */
-    public Mono<Long> addUserToQueue(Long actionGroupId, String customerId, WaitStatus status) {
+    public Mono<Long> addUserToQueue(Long actionGroupId, String customerId, WaitStatus status, long score) {
         String queueKey = redisKeyBuilder.queue(actionGroupId, status);
-        return queueRepository.add(queueKey, customerId, System.currentTimeMillis());
+        return queueRepository.add(queueKey, customerId, score);
     }
 
     /**ㄷ
