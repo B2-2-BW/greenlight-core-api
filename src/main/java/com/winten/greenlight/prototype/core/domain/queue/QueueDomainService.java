@@ -47,11 +47,12 @@ public class QueueDomainService {
      * @param actionGroupId 사용자가 진입하려는 ActionGroup의 ID
      * @param customerId  사용자에게 부여된 고유 ID
      * @param status 대기열의 상태 (WAITING or READY)
+     * @param timestamp 사용자가 대기열에 추가된 시점의 타임스탬프
      * @return Mono<Long> 대기열에 추가된 후의 순번 (0부터 시작)
      */
-    public Mono<Long> addUserToQueue(Long actionGroupId, String customerId, WaitStatus status) {
+    public Mono<Long> addUserToQueue(Long actionGroupId, String customerId, WaitStatus status, long timestamp) {
         String queueKey = redisKeyBuilder.queue(actionGroupId, status);
-        return queueRepository.add(queueKey, customerId, System.currentTimeMillis());
+        return queueRepository.add(queueKey, customerId, timestamp);
     }
 
     /**ㄷ

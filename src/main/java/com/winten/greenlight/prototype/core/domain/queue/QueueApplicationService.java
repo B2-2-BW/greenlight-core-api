@@ -38,9 +38,10 @@ public class QueueApplicationService {
      * @param actionId      사용자가 접근하려는 액션의 ID
      * @param greenlightToken (Optional) 고객이 보유한 대기열 토큰
      * @param requestParams 사용자가 요청한 모든 쿼리 파라미터 맵 (ActionRule 검사에 사용)
+     * @param timestamp 최초 진입 시점의 타임스탬프
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-        public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String destinationUrl, String greenlightToken, Map<String, String> requestParams) {
+        public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String destinationUrl, String greenlightToken, Map<String, String> requestParams, long timestamp) {
         return cachedActionService.getActionById(actionId)
             .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
             .flatMap(action -> {
@@ -66,35 +67,43 @@ public class QueueApplicationService {
                                         return Mono.just(new EntryTicket(action.getId(), tokenDomainService.extractCustomerId(greenlightToken), destinationUrl, System.currentTimeMillis(), WaitStatus.READY, greenlightToken));
                                     } else {
                                         // 1-1. 만약 이전 action의 토큰이라면, waiting queue에 저장하는 로직 태운다.
-                                        return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams);
+                                        return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams, greenlightToken, System.currentTimeMillis());
                                     }
                                 })
-                                .switchIfEmpty(handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams))
+                                .switchIfEmpty(handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams, greenlightToken, System.currentTimeMillis()))
                                 .onErrorResume(e -> {
                                     // 토큰에서 actionId 추출 실패 시 신규 진입자로 처리
-                                    return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams);
+                                    return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams, greenlightToken, System.currentTimeMillis());
                                 });
                         } else {
                             // 4. 토큰이 없는 신규 진입자 처리
-                            return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams);
+                            return handleNewEntry(actionId, action.getActionGroupId(), destinationUrl, action, requestParams, greenlightToken, System.currentTimeMillis());
                         }
                     });
             });
     }
 
+    
     /**
      * 토큰이 없거나 유효하지 않은 경우, 혹은 다른 actionId의 토큰인 경우 신규 진입자를 처리합니다.
      * customerId를 생성하고 대기열 필요 여부에 따라 WAITING 또는 READY 큐에 추가합니다.
+     * 기존 토큰에 customerId가 있다면 해당 customerId를 재사용합니다.
      *
      * @param actionId 액션 ID
      * @param actionGroupId 액션 그룹 ID
      * @param destinationUrl 목적지 URL
      * @param action Action 객체
      * @param requestParams 요청 파라미터 맵
+     * @param greenlightToken (Optional) 고객이 보유한 대기열 토큰
+     * @param timestamp 최초 진입 시점의 타임스탬프
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-    private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, String destinationUrl, com.winten.greenlight.prototype.core.domain.action.Action action, Map<String, String> requestParams) {
-        return generateCustomerId(actionId)
+    private Mono<EntryTicket> handleNewEntry(Long actionId, Long actionGroupId, String destinationUrl, com.winten.greenlight.prototype.core.domain.action.Action action, Map<String, String> requestParams, String greenlightToken, long timestamp) {
+        Mono<String> customerIdMono = Mono.justOrEmpty(greenlightToken) // 기존 토큰에 customerId가 있다면 해당 customerId를 재사용합니다.
+            .map(tokenDomainService::extractCustomerId)
+            .switchIfEmpty(generateCustomerId(actionId));
+
+        return customerIdMono
             .flatMap(customerId ->
                 queueDomainService.isWaitingRequired(actionGroupId)
                     .flatMap(isWaiting -> {
@@ -102,7 +111,8 @@ public class QueueApplicationService {
                             // 5. 대기가 필요한 경우: WAITING 토큰 발급 및 대기열 등록
                             return tokenDomainService.issueToken(customerId, action, WaitStatus.WAITING.name(), destinationUrl)
                                 .flatMap(newJwt ->
-                                    queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.WAITING)
+                                    // 대기열에 사용자 추가 시, 컨트롤러에서 전달받은 timestamp 사용
+                                    queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.WAITING, timestamp)
                                             .then(actionEventPublisher.publish(WaitStatus.WAITING, actionGroupId, actionId, customerId, System.currentTimeMillis()))
                                             .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), WaitStatus.WAITING, newJwt))
                                 );
@@ -110,7 +120,8 @@ public class QueueApplicationService {
                             // 6. 대기가 필요 없는 경우: READY 토큰 발급 및 준비열 등록
                             return tokenDomainService.issueToken(customerId, action, WaitStatus.READY.name(), destinationUrl)
                                 .flatMap(newJwt ->
-                                    queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.READY)
+                                    // 사용자 추가 시, 컨트롤러에서 전달받은 timestamp 사용
+                                    queueDomainService.addUserToQueue(actionGroupId, customerId, WaitStatus.READY, timestamp)
                                         .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), WaitStatus.READY, newJwt))
                                 );
                         }

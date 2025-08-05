@@ -27,17 +27,21 @@ public class QueueController {
      *
      * @param request      대기열 진입 요청 정보 (actionId, requestParams)
      * @param greenlightToken (Optional) 고객이 보유한 대기열 토큰
+     * @param timestamp (Optional) 요청 타임스탬프 (밀리초 단위). 제공되지 않으면 현재 서버 시간 사용.
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
     @PostMapping("/check-or-enter")
     public Mono<EntryTicket> checkOrEnterQueue(
             @RequestBody EntryRequest request,
             @RequestParam(required = false) Map<String, String> requestParams,
-            @RequestHeader(name = "X-GREENLIGHT-TOKEN", required = false) String greenlightToken
+            @RequestHeader(name = "X-GREENLIGHT-TOKEN", required = false) String greenlightToken,
+            @RequestHeader(name = "X-REQUEST-TIMESTAMP", required = false) Long timestamp
     ) {
         if (request.getActionId() == null) {
             return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "actionId is required."));
         }
-        return queueApplicationService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightToken, requestParams);
+        // timestamp 현재 시간으로 설정 (최초 진입 시점)
+        long entryTimestamp = (timestamp != null) ? timestamp : System.currentTimeMillis();
+        return queueApplicationService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightToken, requestParams, entryTimestamp);
     }
 }
