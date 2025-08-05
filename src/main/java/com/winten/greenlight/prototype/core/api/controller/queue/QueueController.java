@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.core.api.controller.queue;
 
+import com.winten.greenlight.prototype.core.api.controller.queue.dto.QueueProcessRequest;
 import com.winten.greenlight.prototype.core.api.controller.queue.dto.EntryRequest;
 import com.winten.greenlight.prototype.core.domain.queue.QueueApplicationService;
 import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
@@ -39,6 +40,13 @@ public class QueueController {
             return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "actionId is required."));
         }
         long timestamp = System.currentTimeMillis();
-        return queueApplicationService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightToken, requestParams, timestamp);
+        var command = new QueueProcessRequest(
+            request.getActionId(),
+            request.getDestinationUrl(),
+            greenlightToken,
+            requestParams,
+            timestamp
+        );
+        return queueApplicationService.checkOrEnterQueue(command);
     }
 }
