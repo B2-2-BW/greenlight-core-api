@@ -28,7 +28,7 @@ public class QueueDomainService {
      */
     public Mono<Boolean> isWaitingRequired(Long actionGroupId) {
         return queueRepository.getAvailableCapacity(actionGroupId)
-                .map(availableCapacity -> availableCapacity > 0);
+                .map(availableCapacity -> availableCapacity <= 0);
     }
 
     /**
