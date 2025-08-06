@@ -32,12 +32,11 @@ public class QueueController {
     @PostMapping("/check-or-enter")
     public Mono<EntryTicket> checkOrEnterQueue(
             @RequestBody EntryRequest request,
-            @RequestParam(required = false) Map<String, String> requestParams,
             @RequestHeader(name = "X-GREENLIGHT-TOKEN", required = false) String greenlightToken
     ) {
         if (request.getActionId() == null) {
             return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "actionId is required."));
         }
-        return queueApplicationService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightToken, requestParams);
+        return queueApplicationService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightToken);
     }
 }

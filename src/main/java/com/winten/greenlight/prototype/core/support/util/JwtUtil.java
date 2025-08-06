@@ -35,7 +35,7 @@ public class JwtUtil {
         claims.put("actionGroupId", entry.getActionGroupId());
         claims.put("actionId", entry.getActionId());
         claims.put("customerId", entry.getCustomerId());
-        claims.put("landingDestinationUrl", entry.getLandingDestinationUrl());
+        claims.put("destinationUrl", entry.getDestinationUrl());
         claims.put("timestamp", entry.getTimestamp());
 
         return createToken(claims, entry.getCustomerId());

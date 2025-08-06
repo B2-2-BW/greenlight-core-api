@@ -35,6 +35,10 @@ logging:
 #    level: %5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]
 #  include-application-name: false
 
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
+  
 spring:
   data:
     redis:

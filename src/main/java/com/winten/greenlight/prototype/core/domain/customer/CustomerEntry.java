@@ -16,6 +16,6 @@ public class CustomerEntry {
     private Long actionGroupId;
     private Long actionId;
     private String customerId;
-    private String landingDestinationUrl;
+    private String destinationUrl;
     private Long timestamp;
 }
