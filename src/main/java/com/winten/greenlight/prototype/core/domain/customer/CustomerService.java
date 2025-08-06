@@ -64,7 +64,7 @@ public class CustomerService {
         return customerRepository.deleteCustomer(customer, WaitStatus.WAITING)
                 .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
                 .then(Mono.defer(() -> {
-                    customer.setWaitStatus(WaitStatus.ENTERED);
+                    customer.setWaitStatus(WaitStatus.CANCELLED);
                     return actionEventPublisher.publish(customer);
                 }))
                 .then(Mono.just(1L));

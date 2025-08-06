@@ -36,11 +36,11 @@ public class CustomerController {
                 .map(ResponseEntity::ok);
     }
 
-    @DeleteMapping()
+    @PostMapping("leave")
     public Mono<ResponseEntity<Void>> deleteCustomer(
-            @RequestHeader(name = "X-GREENLIGHT-TOKEN") String token
+            @RequestBody CustomerLeaveRequest request
     ) {
-        return customerService.deleteCustomerFromQueue(token)
+        return customerService.deleteCustomerFromQueue(request.getGreenlightToken())
                 .thenReturn(ResponseEntity.ok().build());
     }
 
