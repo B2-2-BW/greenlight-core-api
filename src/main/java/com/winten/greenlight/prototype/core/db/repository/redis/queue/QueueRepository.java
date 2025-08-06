@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.core.db.repository.redis.queue;
 
+import com.winten.greenlight.prototype.core.support.constant.CoreConstant;
 import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,15 +21,20 @@ public class QueueRepository {
     private final RedisKeyBuilder keyBuilder;
 
     /**
-     * 특정 ActionGroup의 활성 사용자 수를 조회합니다.
-     * Redis ZSET의 cardinality (요소 개수)를 사용합니다.
+     * 특정 ActionGroup에 진입 가능한 수를 조회합니다.
      *
      * @param actionGroupId 조회할 ActionGroup의 ID
-     * @return Mono<Long> 활성 사용자 수를 담은 Mono
+     * @return Mono<Long> ActionGroup 내 진입 가능한 수
      */
-    public Mono<Long> getActiveUserCount(Long actionGroupId) {
-        String key = keyBuilder.activeUsers(actionGroupId); // "active_users:{actionGroupId}" 키 생성
-        return redisTemplate.opsForZSet().size(key); // ZSET의 요소 개수 반환
+    public Mono<Long> getAvailableCapacity(Long actionGroupId) {
+        String key = keyBuilder.actionGroupStatus(actionGroupId);
+        return redisTemplate.opsForHash().get(key, CoreConstant.REDIS_KEY.AVAILABLE_CAPACITY)
+                .map(obj -> Long.valueOf(obj.toString()))
+                .switchIfEmpty(Mono.just(0L))
+                .onErrorResume(e -> {
+                    log.error("failed to get available capacity", e);
+                    return Mono.just(0L);
+                }); // ZSET의 요소 개수 반환
     }
 
     /**

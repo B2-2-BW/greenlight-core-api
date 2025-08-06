@@ -1,8 +1,6 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
 import com.winten.greenlight.prototype.core.db.repository.redis.queue.QueueRepository;
-import com.winten.greenlight.prototype.core.domain.action.ActionGroup;
-import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.token.TokenDomainService;
 import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
@@ -13,13 +11,11 @@ import reactor.core.publisher.Mono;
 /**
  * 대기열(Queue) 도메인의 비즈니스 로직을 담당하는 서비스입니다.
  * 대기열 진입 여부 판단, 사용자 대기열 추가, 순번 조회 등의 기능을 제공합니다.
- * 위치: com.winten.greenlight.prototype.core.domain.queue
  */
 @Service
 @RequiredArgsConstructor
 public class QueueDomainService {
     private final QueueRepository queueRepository;
-    private final CachedActionService cachedActionService; // ActionGroup 정보를 위해 주입
     private final TokenDomainService tokenDomainService;
     private final RedisKeyBuilder redisKeyBuilder;
 
@@ -31,14 +27,8 @@ public class QueueDomainService {
      * @return Mono<Boolean> 대기 필요 여부
      */
     public Mono<Boolean> isWaitingRequired(Long actionGroupId) {
-        Mono<Long> activeUserCountMono = queueRepository.getActiveUserCount(actionGroupId);
-        // ActionGroup 정보를 CachedActionService를 통해 가져옵니다.
-        Mono<Integer> maxAllowedCustomersMono = cachedActionService.getActionGroupById(actionGroupId)
-            .map(ActionGroup::getMaxActiveCustomers)
-            .defaultIfEmpty(0);
-
-        return Mono.zip(activeUserCountMono, maxAllowedCustomersMono)
-            .map(tuple -> tuple.getT1() >= tuple.getT2());
+        return queueRepository.getAvailableCapacity(actionGroupId)
+                .map(availableCapacity -> availableCapacity > 0);
     }
 
     /**
@@ -54,7 +44,7 @@ public class QueueDomainService {
         return queueRepository.add(queueKey, customerId, System.currentTimeMillis());
     }
 
-    /**ㄷ
+    /**
      * 대기열에서 특정 사용자의 현재 순번을 조회합니다.
      *
      * @param actionId 조회할 Action의 ID
@@ -101,4 +91,3 @@ public class QueueDomainService {
             .then();
     }
 }
-

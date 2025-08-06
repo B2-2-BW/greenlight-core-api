@@ -30,10 +30,6 @@ public class RedisKeyBuilder {
     public String queue(Long actionGroupId, WaitStatus waitStatus) {
         return prefix + ":action_group:" + actionGroupId + ":queue:" + waitStatus;
     }
-    // 활성 사용자 수를 저장하는 ZSET의 키
-    public String activeUsers(Long actionGroupId) {
-        return prefix + ":action_group:" + actionGroupId + ":active_users";
-    }
     // 토큰 메타데이터를 저장하는 Hash의 키
     public String token(String jwt) {
         return prefix + ":token:" + jwt;
