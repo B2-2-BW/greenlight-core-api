@@ -43,4 +43,10 @@ public class CustomerController {
         return customerService.deleteCustomerFromQueue(token)
                 .thenReturn(ResponseEntity.ok().build());
     }
+
+    @GetMapping("/accesslog/dummy")
+    public Mono<ResponseEntity<Void>> insertDummyAccessLog(@RequestParam Long actionGroupId) {
+        return customerService.insertTestAccesslog(actionGroupId)
+                .then(Mono.just(ResponseEntity.ok().build()));
+    }
 }

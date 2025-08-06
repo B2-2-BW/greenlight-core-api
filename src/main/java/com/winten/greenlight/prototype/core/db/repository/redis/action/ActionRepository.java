@@ -80,4 +80,9 @@ public class ActionRepository {
         var key = keyBuilder.landingCacheKey(landingId);
         return stringRedisTemplate.opsForValue().get(key);
     }
+
+    public Mono<Boolean> putAccessLog(Long actionGroupId, String customerId) {
+        var key = keyBuilder.actionGroupAccessLog(actionGroupId);
+        return stringRedisTemplate.opsForZSet().add(key, customerId, System.currentTimeMillis());
+    }
 }

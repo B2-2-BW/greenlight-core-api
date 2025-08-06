@@ -1,13 +1,13 @@
 package com.winten.greenlight.prototype.core.domain.customer;
 
 import com.winten.greenlight.prototype.core.api.controller.customer.TicketVerificationResponse;
+import com.winten.greenlight.prototype.core.db.repository.redis.action.ActionRepository;
 import com.winten.greenlight.prototype.core.db.repository.redis.customer.CustomerRepository;
-import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import com.winten.greenlight.prototype.core.support.publisher.ActionEventPublisher;
 import com.winten.greenlight.prototype.core.support.util.JwtUtil;
-import io.micrometer.observation.ObservationRegistry;
+import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,10 +18,9 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class CustomerService {
     private final CustomerRepository customerRepository;
-    private final CachedActionService cachedActionService;
-    private final ObservationRegistry observationRegistry;
     private final JwtUtil jwtUtil;
     private final ActionEventPublisher actionEventPublisher;
+    private final ActionRepository actionRepository;
 
 
     // TODO
@@ -44,11 +43,12 @@ public class CustomerService {
                     }
                     return customerRepository.enqueueCustomer(customer, WaitStatus.ENTERED)
                             .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
-                            .then(Mono.defer(() -> {
+                            .then(Mono.defer(() -> { // 모니터링 입장이벤트 로깅
                                 customer.setWaitStatus(WaitStatus.ENTERED);
                                 customer.setWaitTimeMs(waitTimeMs);
                                 return actionEventPublisher.publish(customer);
                             }))
+                            .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId())) // 활성사용자수 계산 로깅
                             .then(Mono.just(TicketVerificationResponse.success(customer)));
                 })
                 .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(customer, "유효한 고객 ID를 찾을 수 없습니다.")))
@@ -68,5 +68,10 @@ public class CustomerService {
                     return actionEventPublisher.publish(customer);
                 }))
                 .then(Mono.just(1L));
+    }
+
+    public Mono<Boolean> insertTestAccesslog(Long actionGroupId) {
+        String customerId = TSID.fast().toString();
+        return actionRepository.putAccessLog(actionGroupId, customerId);
     }
 }

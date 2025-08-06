@@ -64,4 +64,8 @@ public class RedisKeyBuilder {
     public String landingCacheKey(String landingId) {
         return prefix + ":landing_action_mapping:" + landingId;
     }
+
+    public String actionGroupAccessLog(Long actionGroupId) {
+        return prefix + ":action_group:" + actionGroupId + ":accesslog";
+    }
 }
