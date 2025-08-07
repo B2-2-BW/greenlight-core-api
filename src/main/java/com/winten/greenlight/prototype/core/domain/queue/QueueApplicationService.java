@@ -86,7 +86,7 @@ public class QueueApplicationService {
                                             if (status == WaitStatus.WAITING) {
                                                 return actionEventPublisher.publish(status, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
                                             }
-                                            return Mono.empty();
+                                            return actionEventPublisher.publish(WaitStatus.BYPASSED, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
                                         }))
                                         .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), status, newJwt))
                                 );
