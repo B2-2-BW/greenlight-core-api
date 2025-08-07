@@ -6,9 +6,11 @@ import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.queue.CustomerQueueInfo;
 import com.winten.greenlight.prototype.core.domain.queue.QueueSseService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -25,6 +27,11 @@ public class QueueSseController {
             @RequestParam Long actionId,
             @RequestParam String customerId
     ) {
+
+        if (actionId == null || customerId == null || customerId.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "actionId나 customerId가 존재하지 않습니다.");
+        }
+
         return cachedActionService.getActionById(actionId)   // Mono<Action>
                 .flatMapMany(action -> {
                     Long actionGroupId = action.getActionGroupId();
