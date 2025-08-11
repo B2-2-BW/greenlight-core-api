@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.domain.action.ActionGroup;
+import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorType;
 import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
@@ -84,5 +85,10 @@ public class ActionRepository {
     public Mono<Boolean> putAccessLog(Long actionGroupId, String customerId) {
         var key = keyBuilder.actionGroupAccessLog(actionGroupId);
         return stringRedisTemplate.opsForZSet().add(key, customerId, System.currentTimeMillis());
+    }
+
+    public Mono<Long> getWaitingCountByActionGroupId(Long actionGroupId) {
+        var key = keyBuilder.queue(actionGroupId, WaitStatus.WAITING);
+        return stringRedisTemplate.opsForZSet().size(key);
     }
 }

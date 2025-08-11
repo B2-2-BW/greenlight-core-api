@@ -28,8 +28,16 @@ public class QueueRepository {
      */
     public Mono<Long> getAvailableCapacity(Long actionGroupId) {
         String key = keyBuilder.actionGroupStatus(actionGroupId);
-        return redisTemplate.opsForHash().get(key, CoreConstant.REDIS_KEY.AVAILABLE_CAPACITY)
-                .map(obj -> Long.valueOf(obj.toString()))
+        return redisTemplate.opsForHash().entries(key)
+                .collectMap(
+                        e -> String.valueOf(e.getKey()),
+                        e -> String.valueOf(e.getValue())
+                )
+                .map(map ->{
+                            long waitingQueueSize = Long.parseLong(map.getOrDefault("waitingQueueSize", "0"));
+                            long availableCapacity = Long.parseLong(map.getOrDefault("availableCapacity", "0"));
+                            return (waitingQueueSize == 0L && availableCapacity > 0L) ? availableCapacity : 0L;
+                })
                 .switchIfEmpty(Mono.just(0L))
                 .onErrorResume(e -> {
                     log.error("failed to get available capacity", e);
