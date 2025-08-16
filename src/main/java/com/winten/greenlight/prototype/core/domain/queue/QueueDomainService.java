@@ -29,10 +29,7 @@ public class QueueDomainService {
      */
     public Mono<Boolean> isWaitingRequired(ActionGroup actionGroup) {
         return queueRepository.countActiveCustomersFromAccessLog(actionGroup.getId())
-                .map(accessLogSize -> {
-                    System.out.println(accessLogSize);
-                    return accessLogSize >= actionGroup.getMaxActiveCustomers();
-                });
+                .map(accessLogSize -> accessLogSize >= actionGroup.getMaxActiveCustomers());
     }
 
     /**
