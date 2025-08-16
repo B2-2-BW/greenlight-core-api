@@ -8,6 +8,8 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
+import java.util.Optional;
+
 /**
  * 대기열 관련 Redis 작업을 수행하는 Repository 클래스입니다.
  * Redis Sorted Set (ZSET)을 사용하여 대기열 및 활성 사용자 수를 관리합니다.
@@ -69,5 +71,10 @@ public class QueueRepository {
     public Mono<Long> getRankFromWaitingQueue(Long actionId, String queueId) {
         String key = keyBuilder.waitingQueue(actionId);
         return redisTemplate.opsForZSet().rank(key, queueId);
+    }
+
+    public Mono<Long> countActiveCustomersFromAccessLog(Long actionGroupId) {
+        String key = keyBuilder.accessLog(actionGroupId);
+        return redisTemplate.opsForZSet().size(key);
     }
 }

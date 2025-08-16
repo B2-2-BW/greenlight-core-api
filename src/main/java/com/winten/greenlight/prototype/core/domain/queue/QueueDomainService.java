@@ -1,6 +1,7 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
 import com.winten.greenlight.prototype.core.db.repository.redis.queue.QueueRepository;
+import com.winten.greenlight.prototype.core.domain.action.ActionGroup;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.token.TokenDomainService;
 import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
@@ -23,12 +24,15 @@ public class QueueDomainService {
      * 특정 ActionGroup에 대해 현재 대기가 필요한지 판단합니다.
      * 활성 사용자 수가 ActionGroup의 최대 허용 고객 수를 초과하는지 확인합니다.
      *
-     * @param actionGroupId 검사할 ActionGroup의 ID
+     * @param actionGroup 검사할 ActionGroup
      * @return Mono<Boolean> 대기 필요 여부
      */
-    public Mono<Boolean> isWaitingRequired(Long actionGroupId) {
-        return queueRepository.getAvailableCapacity(actionGroupId)
-                .map(availableCapacity -> availableCapacity <= 0);
+    public Mono<Boolean> isWaitingRequired(ActionGroup actionGroup) {
+        return queueRepository.countActiveCustomersFromAccessLog(actionGroup.getId())
+                .map(accessLogSize -> {
+                    System.out.println(accessLogSize);
+                    return accessLogSize >= actionGroup.getMaxActiveCustomers();
+                });
     }
 
     /**

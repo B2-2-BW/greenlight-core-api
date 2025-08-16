@@ -64,4 +64,8 @@ public class RedisKeyBuilder {
     public String actionGroupAccessLog(Long actionGroupId) {
         return prefix + ":action_group:" + actionGroupId + ":accesslog";
     }
+
+    public String actionGroupSession(Long actionGroupId) {
+        return prefix + ":action_group:" + actionGroupId + ":session";
+    }
 }

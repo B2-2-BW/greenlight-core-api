@@ -1,6 +1,7 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
 import com.winten.greenlight.prototype.core.domain.action.Action;
+import com.winten.greenlight.prototype.core.domain.action.ActionGroup;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.customer.Customer;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
@@ -58,7 +59,7 @@ public class QueueApplicationService {
                             Customer customer = jwtUtil.getCustomerFromToken(greenlightToken);
                             customerId = customer.getCustomerId();
                         }
-                        return handleNewEntry(action, destinationUrl, customerId);
+                        return handleNewEntry(actionGroup, action, destinationUrl, customerId);
                     });
             });
     }
@@ -71,11 +72,11 @@ public class QueueApplicationService {
      * @param action Action 객체
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-    private Mono<EntryTicket> handleNewEntry(Action action, String destinationUrl, String forwardedCustomerId) {
+    private Mono<EntryTicket> handleNewEntry(ActionGroup actionGroup, Action action, String destinationUrl, String forwardedCustomerId) {
         String customerId = forwardedCustomerId != null
                                 ? generateCustomerId(action.getId(), forwardedCustomerId) // 기존에 사용중인 고유번호가 있으면 유지
                                 : generateCustomerId(action.getId());
-        return queueDomainService.isWaitingRequired(action.getActionGroupId())
+        return queueDomainService.isWaitingRequired(actionGroup)
                     .flatMap(isWaitingRequired -> {
                         WaitStatus status = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.READY;
                         // 5. 대기가 필요한 경우: WAITING 토큰 발급 및 대기열 등록
@@ -83,10 +84,8 @@ public class QueueApplicationService {
                                 .flatMap(newJwt ->
                                     queueDomainService.addUserToQueue(action.getActionGroupId(), customerId, status)
                                         .then(Mono.defer(() -> {
-                                            if (status == WaitStatus.WAITING) {
-                                                return actionEventPublisher.publish(status, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
-                                            }
-                                            return actionEventPublisher.publish(WaitStatus.BYPASSED, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
+                                            var returnStatus = status == WaitStatus.WAITING ? WaitStatus.WAITING : WaitStatus.BYPASSED;
+                                            return actionEventPublisher.publish(returnStatus, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
                                         }))
                                         .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), status, newJwt))
                                 );

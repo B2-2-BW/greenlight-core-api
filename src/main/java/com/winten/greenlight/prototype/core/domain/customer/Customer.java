@@ -17,4 +17,12 @@ public class Customer {
     private WaitStatus waitStatus;
     private String destinationUrl;
     private Long waitTimeMs;
+
+    public String uniqueId() {
+        try {
+            return customerId.split(":")[1];
+        } catch (Exception e) {
+            return customerId;
+        }
+    }
 }

@@ -91,4 +91,9 @@ public class ActionRepository {
         var key = keyBuilder.queue(actionGroupId, WaitStatus.WAITING);
         return stringRedisTemplate.opsForZSet().size(key);
     }
+
+    public Mono<Boolean> putSession(Long actionGroupId, String uniqueId) {
+        var key = keyBuilder.actionGroupSession(actionGroupId);
+        return stringRedisTemplate.opsForZSet().add(key, uniqueId, System.currentTimeMillis());
+    }
 }
