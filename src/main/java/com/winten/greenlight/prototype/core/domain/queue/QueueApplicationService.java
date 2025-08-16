@@ -55,10 +55,9 @@ public class QueueApplicationService {
 
                         // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
                         String customerId = null;
-                        if (StringUtils.hasText(greenlightToken)) {
-                            Customer customer = jwtUtil.getCustomerFromToken(greenlightToken);
-                            customerId = customer.getCustomerId();
-                        }
+                        try {
+                            customerId = jwtUtil.getCustomerFromToken(greenlightToken).getCustomerId();
+                        } catch (Exception ignored) {}
                         return handleNewEntry(actionGroup, action, destinationUrl, customerId);
                     });
             });
