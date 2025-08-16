@@ -3,7 +3,6 @@ package com.winten.greenlight.prototype.core.domain.queue;
 import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.domain.action.ActionGroup;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
-import com.winten.greenlight.prototype.core.domain.customer.Customer;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
 import com.winten.greenlight.prototype.core.domain.customer.EntryTicket;
 import com.winten.greenlight.prototype.core.support.error.CoreException;
@@ -16,7 +15,6 @@ import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import org.springframework.util.StringUtils;
 
 /**
  * 대기열 시스템의 핵심 애플리케이션 서비스입니다.
@@ -53,12 +51,12 @@ public class QueueApplicationService {
                             return Mono.just(new EntryTicket(action.getId(), null, destinationUrl, System.currentTimeMillis(), WaitStatus.DISABLED, null));
                         }
 
-                        // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
-                        String customerId = null;
-                        try {
-                            customerId = jwtUtil.getCustomerFromToken(greenlightToken).getCustomerId();
+                        String customerKey = null;
+                        try { // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
+                            customerKey = jwtUtil.getCustomerFromToken(greenlightToken).getCustomerId().split(":")[1];
                         } catch (Exception ignored) {}
-                        return handleNewEntry(actionGroup, action, destinationUrl, customerId);
+                        System.out.println("고객ID: " + customerKey);
+                        return handleNewEntry(actionGroup, action, destinationUrl, customerKey);
                     });
             });
     }
@@ -71,9 +69,9 @@ public class QueueApplicationService {
      * @param action Action 객체
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-    private Mono<EntryTicket> handleNewEntry(ActionGroup actionGroup, Action action, String destinationUrl, String forwardedCustomerId) {
-        String customerId = forwardedCustomerId != null
-                                ? generateCustomerId(action.getId(), forwardedCustomerId) // 기존에 사용중인 고유번호가 있으면 유지
+    private Mono<EntryTicket> handleNewEntry(ActionGroup actionGroup, Action action, String destinationUrl, String customerKey) {
+        String customerId = customerKey != null
+                                ? generateCustomerId(action.getId(), customerKey) // 기존에 사용중인 고유번호가 있으면 유지
                                 : generateCustomerId(action.getId());
         return queueDomainService.isWaitingRequired(actionGroup)
                     .flatMap(isWaitingRequired -> {
@@ -96,10 +94,11 @@ public class QueueApplicationService {
      * customerId는 {actionId}:{tsid} 형식입니다.
      *
      * @param actionId 액션 ID
+     * @param uniqueKey 랜덤 생성된 고유 문자열 (tsid 기반)
      * @return Mono<String> 생성된 customerId
      */
-    public String generateCustomerId(Long actionId, String customerId) {
-        return actionId + ":" + customerId;
+    public String generateCustomerId(Long actionId, String customerKey) {
+        return actionId + ":" + customerKey;
     }
 
     public String generateCustomerId(Long actionId) {
