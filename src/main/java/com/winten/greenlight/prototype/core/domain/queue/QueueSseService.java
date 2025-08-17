@@ -1,28 +1,28 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
-import com.winten.greenlight.prototype.core.db.repository.redis.queue.QueueRepository;
+import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
+import com.winten.greenlight.prototype.core.support.error.CoreException;
+import com.winten.greenlight.prototype.core.support.error.ErrorType;
+import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
 import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 public class QueueSseService {
-    private final QueueRepository queueRepository;
+    private final CachedActionService cachedActionService;
     private final RedisKeyBuilder redisKeyBuilder;
-    private final StringRedisTemplate redisTemplate;
+    private final ReactiveRedisTemplate<String, String> redisTemplate;
 
     //사용자별로 상태를 push할 수 있는 sink 저장소
     // key: actionGroupId:customerId ( 마음대로 정할 수 있지만, 보통 해당 형식으로 설정 )
@@ -89,39 +89,38 @@ public class QueueSseService {
                 .distinctUntilChanged();             // 상태가 바뀔 때만 이벤트 발행
     }
 
-    public void updateQueueStatus() {
-    }
-
     public Mono<CustomerQueueInfo> findUserQueueInfo(Long actionGroupId, String customerId) {
-        List<WaitStatus> targetStatuses = List.of(WaitStatus.READY, WaitStatus.WAITING);
-
-        for (WaitStatus status : targetStatuses) {
-            String redisKey = redisKeyBuilder.queue(actionGroupId, status);
-
-            // 현재 고객의 순번(rank)
-            Long rank = redisTemplate.opsForZSet().rank(redisKey, customerId);
-
-            if (rank != null) {
-                // 현재 큐 전체 인원 조회
-                Long queueSize = redisTemplate.opsForZSet().size(redisKey);
-
-                // 예상 대기 시간 계산 ( 2초로 가정 ** TODO 몇초로 지정할건지 추가 확인 필요 )
-                Long estimatedWaitTime = (queueSize != null) ? queueSize * 2 : 0;
-
-                // DTO 생성 후 반환
-                CustomerQueueInfo info = new CustomerQueueInfo();
-                info.setCustomerId(customerId);
-                info.setPosition(rank + 1);  // Redis rank는 0-based → +1
-                info.setQueueSize(queueSize);
-                info.setEstimatedWaitTime(estimatedWaitTime);
-                info.setWaitStatus(status);
-
-                return Mono.just(info);
-            }
-        }
-
-        // 큐에 없는 고객 empty 반환
-        return Mono.empty();
+        String waitingKey = redisKeyBuilder.queue(actionGroupId, WaitStatus.WAITING);
+        return Mono.zip(redisTemplate.opsForZSet().rank(waitingKey, customerId),
+                        redisTemplate.opsForZSet().size(waitingKey)
+                )
+                // rank 및 size가 Waiting Queue에 있다면 대기중
+                .flatMap(tuple -> cachedActionService.getActionGroupById(actionGroupId)
+                                    .map(actionGroup -> {
+                                        Long estimatedWaitTime = actionGroup.getMaxActiveCustomers() > 0  //  = 대기 position / 최대활성사용자수, 나누기 0 방어로직 추가
+                                                ? Math.round((double) tuple.getT2() / actionGroup.getMaxActiveCustomers())
+                                                : -1L;
+                                        return CustomerQueueInfo.builder()
+                                                .customerId(customerId)
+                                                .estimatedWaitTime(estimatedWaitTime)
+                                                .queueSize(tuple.getT2())
+                                                .position(tuple.getT1() + 1) // Redis rank는 0-based → +1
+                                                .waitStatus(WaitStatus.WAITING)
+                                                .build();
+                                    })
+                )
+                // rank 및 size가 Ready Queue에 있다면 WaitStatus만 반환
+                .switchIfEmpty(redisTemplate.opsForZSet().rank(redisKeyBuilder.queue(actionGroupId, WaitStatus.READY), customerId)
+                        .map(rank -> CustomerQueueInfo.builder()
+                                    .customerId(customerId)
+                                    .waitStatus(WaitStatus.READY)
+                                    .estimatedWaitTime(0L)
+                                    .queueSize(0L)
+                                    .position(0L)
+                                    .build()
+                        ))
+                // Waiting 과 Ready Queue에서 전부 찾을 수 없었다면
+                .switchIfEmpty(Mono.error(new CoreException(ErrorType.CUSTOMER_NOT_FOUND, "이미 입장했거나 존재하지 않는 고객 ID입니다: " + customerId)));
     }
 
 }
