@@ -22,10 +22,7 @@ public class CustomerRepository {
         String key = keyBuilder.queue(customer.getActionGroupId(), waitStatus);
         return redisTemplate.opsForZSet()
                 .add(key, customer.getCustomerId(), customer.getScore())
-                .flatMap(result -> result
-                        ? Mono.just(customer)
-                        : Mono.error(CoreException.of(ErrorType.REDIS_ERROR, "Redis insert failed. customer=" + customer + ", waitStatus=" + waitStatus))
-                );
+                .flatMap(result -> Mono.just(customer));
     }
 
     /**
