@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
+import com.winten.greenlight.prototype.core.db.repository.redis.action.ActionRepository;
 import com.winten.greenlight.prototype.core.db.repository.redis.queue.QueueRepository;
 import com.winten.greenlight.prototype.core.domain.action.ActionGroup;
 import com.winten.greenlight.prototype.core.domain.customer.WaitStatus;
@@ -17,19 +18,21 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class QueueDomainService {
     private final QueueRepository queueRepository;
+    private final ActionRepository actionRepository;
     private final TokenDomainService tokenDomainService;
     private final RedisKeyBuilder redisKeyBuilder;
 
     /**
      * 특정 ActionGroup에 대해 현재 대기가 필요한지 판단합니다.
-     * 활성 사용자 수가 ActionGroup의 최대 허용 고객 수를 초과하는지 확인합니다.
+     * 활성 사용자 수 및 대기고객수가 ActionGroup의 최대 허용 고객 수를 초과하는지 확인합니다.
      *
      * @param actionGroup 검사할 ActionGroup
      * @return Mono<Boolean> 대기 필요 여부
      */
     public Mono<Boolean> isWaitingRequired(ActionGroup actionGroup) {
-        return queueRepository.countActiveCustomersFromAccessLog(actionGroup.getId())
-                .map(accessLogSize -> accessLogSize >= actionGroup.getMaxActiveCustomers());
+        return Mono.zip(queueRepository.countActiveCustomersFromAccessLog(actionGroup.getId()),
+                        actionRepository.getWaitingCountByActionGroupId(actionGroup.getId()))
+                .map(tuple -> tuple.getT1() + tuple.getT2() >= actionGroup.getMaxActiveCustomers());
     }
 
     /**
