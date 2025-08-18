@@ -25,14 +25,18 @@ public class QueueDomainService {
     /**
      * 특정 ActionGroup에 대해 현재 대기가 필요한지 판단합니다.
      * 활성 사용자 수 및 대기고객수가 ActionGroup의 최대 허용 고객 수를 초과하는지 확인합니다.
+     * 활성 사용자 수 계산 시 3초 평균 사용자수를 측정합니다.
      *
      * @param actionGroup 검사할 ActionGroup
      * @return Mono<Boolean> 대기 필요 여부
      */
     public Mono<Boolean> isWaitingRequired(ActionGroup actionGroup) {
+        // T1 = 활성사용자 수, T2 = 대기고객 수.
+        // 대기고객이 있는 경우 무조건 웨이팅
+        // 대기고객이 없는 경우 3초 평균 활성사용자수가 최대 활성사용자수보다 적으면 입장 가능
         return Mono.zip(queueRepository.countActiveCustomersFromAccessLog(actionGroup.getId()),
                         actionRepository.getWaitingCountByActionGroupId(actionGroup.getId()))
-                .map(tuple -> tuple.getT1() + tuple.getT2() >= actionGroup.getMaxActiveCustomers());
+                .map(tuple -> tuple.getT2() > 0 || ((double) tuple.getT1() / 3.0) >= (double) actionGroup.getMaxActiveCustomers());
     }
 
     /**
