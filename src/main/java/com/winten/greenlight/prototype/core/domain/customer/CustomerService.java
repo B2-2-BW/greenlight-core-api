@@ -49,7 +49,7 @@ public class CustomerService {
                                 return actionEventPublisher.publish(customer);
                             }))
                             .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId())) // 활성사용자수 계산을 위한 접속기록 로깅
-                            .then(actionRepository.putSession(customer.getActionGroupId(), customer.uniqueId())) // 5분 동시접속자 수 계산을 위한 로깅 
+                            .then(actionRepository.putSession(customer.uniqueId())) // 5분 동시접속자 수 계산을 위한 로깅
                             .then(Mono.just(TicketVerificationResponse.success(customer)));
                 })
                 .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(customer, "유효한 고객 ID를 찾을 수 없습니다.")))

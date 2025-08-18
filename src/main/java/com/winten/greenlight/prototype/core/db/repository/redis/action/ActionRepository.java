@@ -92,8 +92,8 @@ public class ActionRepository {
         return stringRedisTemplate.opsForZSet().size(key);
     }
 
-    public Mono<Boolean> putSession(Long actionGroupId, String uniqueId) {
-        var key = keyBuilder.actionGroupSession(actionGroupId);
+    public Mono<Boolean> putSession(String uniqueId) {
+        var key = keyBuilder.actionGroupSession();
         return stringRedisTemplate.opsForZSet().add(key, uniqueId, System.currentTimeMillis());
     }
 }
