@@ -53,7 +53,13 @@ public class CustomerService {
                             .then(Mono.just(TicketVerificationResponse.success(customer)));
                 })
                 .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(customer, "유효한 고객 ID를 찾을 수 없습니다.")))
-                .onErrorResume(e -> Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e)))
+                .onErrorResume(e -> {
+                    if (e instanceof CoreException) {
+                        return Mono.error(e);
+                    } else {
+                        return Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
+                    }
+                })
                 ;
     }
 
