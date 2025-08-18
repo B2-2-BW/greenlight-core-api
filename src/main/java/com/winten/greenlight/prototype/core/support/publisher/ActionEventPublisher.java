@@ -51,6 +51,7 @@ public class ActionEventPublisher {
         eventPayload.put("actionId", String.valueOf(actionId));
         eventPayload.put("customerId", customerId);
         eventPayload.put("eventTimestamp", String.valueOf(timestamp));
+        eventPayload.put("recordTimestamp", String.valueOf(System.currentTimeMillis()));
         if (waitTimeMs != null) {
             eventPayload.put("waitTimeMs", String.valueOf(waitTimeMs));
         }
