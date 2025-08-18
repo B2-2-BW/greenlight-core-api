@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.core.domain.queue;
 
+import com.winten.greenlight.prototype.core.db.repository.redis.action.ActionRepository;
 import com.winten.greenlight.prototype.core.domain.action.Action;
 import com.winten.greenlight.prototype.core.domain.action.ActionGroup;
 import com.winten.greenlight.prototype.core.domain.action.CachedActionService;
@@ -26,7 +27,7 @@ import reactor.core.publisher.Mono;
 public class QueueApplicationService {
 
     private final QueueDomainService queueDomainService;
-    private final RuleMatcher ruleMatcher;
+    private final ActionRepository actionRepository;
     private final TokenDomainService tokenDomainService;
     private final CachedActionService cachedActionService;
     private final ActionEventPublisher actionEventPublisher;
@@ -84,6 +85,7 @@ public class QueueApplicationService {
                                             var returnStatus = status == WaitStatus.WAITING ? WaitStatus.WAITING : WaitStatus.BYPASSED;
                                             return actionEventPublisher.publish(returnStatus, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
                                         }))
+                                        .then(actionRepository.putSession(customerId.split(":")[1])) // 5분 동시접속자 수 계산을 위한 로깅
                                         .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), status, newJwt))
                                 );
                     });
