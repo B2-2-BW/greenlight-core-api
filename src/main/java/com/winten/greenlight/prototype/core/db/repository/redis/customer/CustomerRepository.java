@@ -24,9 +24,8 @@ public class CustomerRepository {
                 .add(key, customer.getCustomerId(), customer.getScore())
                 .flatMap(result -> result
                         ? Mono.just(customer)
-                        : Mono.error(CoreException.of(ErrorType.REDIS_ERROR, "Redis insert failed"))
-                )
-                .onErrorResume(e -> Mono.error(CoreException.of(ErrorType.REDIS_ERROR, e.getMessage())));
+                        : Mono.error(CoreException.of(ErrorType.REDIS_ERROR, "Redis insert failed. customer=" + customer + ", waitStatus=" + waitStatus))
+                );
     }
 
     /**
