@@ -73,7 +73,9 @@ public class QueueApplicationService {
         String customerId = customerKey != null
                                 ? generateCustomerId(action.getId(), customerKey) // 기존에 사용중인 고유번호가 있으면 유지
                                 : generateCustomerId(action.getId());
-        return queueDomainService.isWaitingRequired(actionGroup)
+        return actionRepository.putRequestLog(actionGroup.getId(), customerId) // 활성사용자수 계산을 위한 접속기록 로깅
+                .then(actionRepository.putSession(customerId.split(":")[1])) // 5분 동시접속자 수 계산을 위한 로깅
+                .then(queueDomainService.isWaitingRequired(actionGroup)
                     .flatMap(isWaitingRequired -> {
                         WaitStatus status = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.READY;
                         // 5. 대기가 필요한 경우: WAITING 토큰 발급 및 대기열 등록
@@ -84,11 +86,10 @@ public class QueueApplicationService {
                                             var returnStatus = status == WaitStatus.WAITING ? WaitStatus.WAITING : WaitStatus.BYPASSED;
                                             return actionEventPublisher.publish(returnStatus, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
                                         }))
-                                        .then(actionRepository.putRequestLog(actionGroup.getId(), customerId)) // 활성사용자수 계산을 위한 접속기록 로깅
-                                        .then(actionRepository.putSession(customerId.split(":")[1])) // 5분 동시접속자 수 계산을 위한 로깅
                                         .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), status, newJwt))
                                 );
-                    });
+                    })
+                );
     }
 
     /**
