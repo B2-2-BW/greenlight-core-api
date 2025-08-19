@@ -71,7 +71,7 @@ public class QueueRepository {
     }
 
     public Mono<Double> getCurrentRequestPerSec(Long actionGroupId) {
-        String key = keyBuilder.requestLog(actionGroupId);
+        String key = keyBuilder.actionGroupRequestLog(actionGroupId);
         return redisTemplate.opsForZSet().size(key)
                 .map(val -> val / 10.0);
     }
