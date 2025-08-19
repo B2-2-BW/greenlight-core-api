@@ -31,12 +31,12 @@ public class QueueDomainService {
      * @return Mono<Boolean> 대기 필요 여부
      */
     public Mono<Boolean> isWaitingRequired(ActionGroup actionGroup) {
-        // T1 = 활성사용자 수, T2 = 대기고객 수.
+        // T1 = 대기고객 수, T2 = 활성사용자 수
         // 대기고객이 있는 경우 무조건 웨이팅
         // 대기고객이 없는 경우 활성사용자수가 최대 활성사용자수보다 적으면 입장 가능
-        return Mono.zip(queueRepository.getCurrentRequestPerSec(actionGroup.getId()),
-                        actionRepository.getWaitingCountByActionGroupId(actionGroup.getId()))
-                .map(tuple -> tuple.getT2() > 0 || (tuple.getT1()) >= (double) actionGroup.getMaxTrafficPerSecond());
+        return Mono.zip(actionRepository.getWaitingCountByActionGroupId(actionGroup.getId()),
+                        queueRepository.getCurrentRequestPerSec(actionGroup.getId()))
+                .map(tuple -> tuple.getT1() > 0 || (tuple.getT2()) >= (double) actionGroup.getMaxTrafficPerSecond());
     }
 
     /**

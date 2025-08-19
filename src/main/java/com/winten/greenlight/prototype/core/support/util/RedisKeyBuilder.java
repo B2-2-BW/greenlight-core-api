@@ -24,8 +24,8 @@ public class RedisKeyBuilder {
         return prefix + ":action:" + actionId;
     }
 
-    public String accessLog(Long actionGroupId) {
-        return prefix + ":action_group:" + actionGroupId + ":accesslog";
+    public String requestLog(Long actionGroupId) {
+        return prefix + ":action_group:" + actionGroupId + ":request_log";
     }
     public String queue(Long actionGroupId, WaitStatus waitStatus) {
         return prefix + ":action_group:" + actionGroupId + ":queue:" + waitStatus;
