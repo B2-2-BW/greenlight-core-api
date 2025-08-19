@@ -33,10 +33,7 @@ public class QueueSseController {
         }
 
         return cachedActionService.getActionById(actionId)   // Mono<Action>
-                .flatMapMany(action -> {
-                    Long actionGroupId = action.getActionGroupId();
-                    return queueSseService.connect(actionGroupId, customerId); // Flux<CustomerQueueInfo>
-                })
+                .flatMapMany(action -> queueSseService.connect(action.getActionGroupId(), customerId)) // Flux<CustomerQueueInfo
                 .map(queueInfo -> ServerSentEvent.builder(queueInfo).build());
     }
 
