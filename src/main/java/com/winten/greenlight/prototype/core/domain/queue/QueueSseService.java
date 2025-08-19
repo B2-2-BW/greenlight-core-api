@@ -98,7 +98,7 @@ public class QueueSseService {
                 .flatMap(tuple -> cachedActionService.getActionGroupById(actionGroupId)
                                     .map(actionGroup -> {
                                         Long estimatedWaitTime = actionGroup.getMaxTrafficPerSecond() > 0  //  = 대기 position / 최대활성사용자수, 나누기 0 방어로직 추가
-                                                ? Math.round((double) tuple.getT2() / actionGroup.getMaxTrafficPerSecond())
+                                                ? Math.round((double) tuple.getT1() / actionGroup.getMaxTrafficPerSecond())
                                                 : -1L;
                                         return CustomerQueueInfo.builder()
                                                 .customerId(customerId)
