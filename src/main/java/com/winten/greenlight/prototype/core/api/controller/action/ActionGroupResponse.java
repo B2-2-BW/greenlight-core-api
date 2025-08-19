@@ -18,7 +18,7 @@ public class ActionGroupResponse {
     private String ownerId;
     private String name;
     private String description;
-    private Integer maxActiveCustomers;
+    private Integer maxTrafficPerSecond;
     private Boolean enabled;
 
     public static ActionGroupResponse from(final ActionGroup actionGroup) {
@@ -27,7 +27,7 @@ public class ActionGroupResponse {
                 .ownerId(actionGroup.getOwnerId())
                 .name(actionGroup.getName())
                 .description(actionGroup.getDescription())
-                .maxActiveCustomers(actionGroup.getMaxActiveCustomers())
+                .maxTrafficPerSecond(actionGroup.getMaxTrafficPerSecond())
                 .enabled(actionGroup.getEnabled())
                 .build();
     }

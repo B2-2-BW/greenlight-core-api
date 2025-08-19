@@ -34,9 +34,9 @@ public class QueueDomainService {
         // T1 = 활성사용자 수, T2 = 대기고객 수.
         // 대기고객이 있는 경우 무조건 웨이팅
         // 대기고객이 없는 경우 활성사용자수가 최대 활성사용자수보다 적으면 입장 가능
-        return Mono.zip(queueRepository.countActiveCustomersFromAccessLog(actionGroup.getId()),
+        return Mono.zip(queueRepository.getCurrentRequestPerSec(actionGroup.getId()),
                         actionRepository.getWaitingCountByActionGroupId(actionGroup.getId()))
-                .map(tuple -> tuple.getT2() > 0 || ((double) tuple.getT1()) >= (double) actionGroup.getMaxActiveCustomers());
+                .map(tuple -> tuple.getT2() > 0 || (tuple.getT1()) >= (double) actionGroup.getMaxTrafficPerSecond());
     }
 
     /**

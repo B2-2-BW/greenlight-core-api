@@ -1,14 +1,11 @@
 package com.winten.greenlight.prototype.core.db.repository.redis.queue;
 
-import com.winten.greenlight.prototype.core.support.constant.CoreConstant;
 import com.winten.greenlight.prototype.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
-
-import java.util.Optional;
 
 /**
  * 대기열 관련 Redis 작업을 수행하는 Repository 클래스입니다.
@@ -73,8 +70,9 @@ public class QueueRepository {
         return redisTemplate.opsForZSet().rank(key, queueId);
     }
 
-    public Mono<Long> countActiveCustomersFromAccessLog(Long actionGroupId) {
+    public Mono<Double> getCurrentRequestPerSec(Long actionGroupId) {
         String key = keyBuilder.accessLog(actionGroupId);
-        return redisTemplate.opsForZSet().size(key);
+        return redisTemplate.opsForZSet().size(key)
+                .map(val -> val / 10.0);
     }
 }
