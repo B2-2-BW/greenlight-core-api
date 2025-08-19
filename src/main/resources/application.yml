@@ -62,17 +62,6 @@ spring:
           - ${REDIS_CLUSTER_WORKER_NODE_2}
           - ${REDIS_CLUSTER_WORKER_NODE_3}
       password: ${REDIS_PASSWORD}
-management:
-  tracing:
-    sampling:
-      probability: 1.0
-    propagation:
-      consume: b3
-      produce: b3_multi
-    enabled: true
-  zipkin:
-    tracing:
-      endpoint: ${ZIPKIN_URL}
 
 ---
 spring.config.activate.on-profile: dev
@@ -107,13 +96,3 @@ management:
   endpoints:
     web:
       base-path: ${GREENLIGHT_ACTUATOR_PATH}
-  tracing:
-    sampling:
-      probability: 1.0
-    propagation:
-      consume: b3
-      produce: b3_multi
-    enabled: true
-  zipkin:
-    tracing:
-      endpoint: ${ZIPKIN_URL}

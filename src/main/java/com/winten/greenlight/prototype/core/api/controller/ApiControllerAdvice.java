@@ -2,9 +2,6 @@ package com.winten.greenlight.prototype.core.api.controller;
 
 import com.winten.greenlight.prototype.core.support.error.CoreException;
 import com.winten.greenlight.prototype.core.support.error.ErrorResponse;
-import com.winten.greenlight.prototype.core.support.error.LogLevel;
-import io.micrometer.tracing.Span;
-import io.micrometer.tracing.Tracer;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,18 +20,9 @@ import java.util.Map;
 public class ApiControllerAdvice {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-    private final Tracer tracer;
 
     @ExceptionHandler(CoreException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleCoreException(CoreException ex) {
-        if (ex.getErrorType().getLogLevel() == LogLevel.ERROR) {
-            Span currentSpan = tracer.currentSpan();
-            if (currentSpan != null) {
-                currentSpan.error(ex);
-                currentSpan.tag("error.detail", ex.getDetail().toString());
-                currentSpan.tag("exception", ex.getErrorType().name());
-            }
-        }
         return Mono.just(new ErrorResponse(ex))
                     .doOnNext(response -> {
                         switch (ex.getErrorType().getLogLevel()) {
