@@ -45,26 +45,28 @@ async def run_client(session, client_id):
                 return
 
             entry_ticket = await response.json()
-            token = entry_ticket.get("token")
+            token = entry_ticket.get("jwtToken")
             customer_id = entry_ticket.get("customerId")
             wait_status = entry_ticket.get("waitStatus")
 
             print(f"[Client {client_id}] 1. 진입 응답: Status={wait_status}, CustomerId={customer_id}")
 
-        if wait_status == "ENTER":
-            print(f"[Client {client_id}] 즉시 입장 완료.")
-            stats["immediate_entry"] += 1
-            stats["completed"] += 1
-            return
+        # if wait_status == "ENTER":
+        #     print(f"[Client {client_id}] 즉시 입장 완료.")
+        #     stats["immediate_entry"] += 1
+        #     stats["completed"] += 1
+        #     return
 
         # --- 2단계: SSE 연결 및 대기 ---
-        print(f"[Client {client_id}] 2. SSE 연결 및 대기 시작...")
-        sse_url = f"{URL_SSE}?actionId={ACTION_ID}&customerId={customer_id}"
+        if wait_status != "READY":
 
-        try:
-            async with EventSource(sse_url, session=session, timeout=SSE_TIMEOUT) as event_source:
-                async for event in event_source:
-                    if event.type == "message":
+            print(f"[Client {client_id}] 2. SSE 연결 및 대기 시도...")
+            sse_url = f"{URL_SSE}?actionId={ACTION_ID}&customerId={customer_id}"
+
+            try:
+                async with EventSource(sse_url, session=session, timeout=SSE_TIMEOUT) as event_source:
+                    async for event in event_source:
+                        print(f"[Client {client_id}] 2. SSE 응답 수신>>>",event)
                         queue_info = json.loads(event.data)
                         current_status = queue_info.get("waitStatus")
                         print(f"[Client {client_id}] 2. SSE 수신: Status={current_status}, Rank={queue_info.get('rank')}")
@@ -72,15 +74,15 @@ async def run_client(session, client_id):
                             print(f"[Client {client_id}] 2. SSE 'READY' 상태 수신. 3단계로 진행.")
                             stats["entered_after_wait"] += 1
                             break
-        except asyncio.TimeoutError:
-            print(f"[Client {client_id}] 실패: 2단계 SSE 대기 시간 초과.")
-            stats["sse_timeouts"] += 1
-            stats["failures"] += 1
-            return
-        except Exception as e:
-            print(f"[Client {client_id}] 실패: 2단계 SSE 연결 중 오류 - {e}")
-            stats["failures"] += 1
-            return
+            except asyncio.TimeoutError:
+                print(f"[Client {client_id}] 실패: 2단계 SSE 대기 시간 초과.")
+                stats["sse_timeouts"] += 1
+                stats["failures"] += 1
+                return
+            except Exception as e:
+                print(f"[Client {client_id}] 실패: 2단계 SSE 연결 중 오류 - {e}")
+                stats["failures"] += 1
+                return
 
         # --- 3단계: 입장권 검증 요청 (verify) ---
         print(f"[Client {client_id}] 3. 최종 입장 검증 요청...")
