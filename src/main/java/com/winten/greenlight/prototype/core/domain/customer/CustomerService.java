@@ -48,7 +48,6 @@ public class CustomerService {
                                 customer.setWaitTimeMs(waitTimeMs);
                                 return actionEventPublisher.publish(customer);
                             }))
-                            .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId())) // 활성사용자수 계산을 위한 접속기록 로깅
                             .then(actionRepository.putSession(customer.uniqueId())) // 5분 동시접속자 수 계산을 위한 로깅
                             .then(Mono.just(TicketVerificationResponse.success(customer)));
                 })
@@ -77,8 +76,8 @@ public class CustomerService {
                 .then(Mono.just(1L));
     }
 
-    public Mono<Boolean> insertTestAccesslog(Long actionGroupId) {
+    public Mono<Boolean> insertTestRequestLog(Long actionGroupId) {
         String customerId = TSID.fast().toString();
-        return actionRepository.putAccessLog(actionGroupId, customerId);
+        return actionRepository.putRequestLog(actionGroupId, customerId);
     }
 }

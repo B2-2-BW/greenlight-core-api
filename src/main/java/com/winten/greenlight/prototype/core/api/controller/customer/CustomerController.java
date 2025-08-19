@@ -44,9 +44,9 @@ public class CustomerController {
                 .thenReturn(ResponseEntity.ok().build());
     }
 
-    @GetMapping("/accesslog/dummy")
-    public Mono<ResponseEntity<Void>> insertDummyAccessLog(@RequestParam Long actionGroupId) {
-        return customerService.insertTestAccesslog(actionGroupId)
+    @GetMapping("/requestlog/dummy")
+    public Mono<ResponseEntity<Void>> insertDummyRequestLog(@RequestParam Long actionGroupId) {
+        return customerService.insertTestRequestLog(actionGroupId)
                 .then(Mono.just(ResponseEntity.ok().build()));
     }
 }

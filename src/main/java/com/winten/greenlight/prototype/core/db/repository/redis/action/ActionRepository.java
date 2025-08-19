@@ -82,8 +82,8 @@ public class ActionRepository {
         return stringRedisTemplate.opsForValue().get(key);
     }
 
-    public Mono<Boolean> putAccessLog(Long actionGroupId, String customerId) {
-        var key = keyBuilder.actionGroupAccessLog(actionGroupId);
+    public Mono<Boolean> putRequestLog(Long actionGroupId, String customerId) {
+        var key = keyBuilder.actionGroupRequestLog(actionGroupId);
         var time = System.currentTimeMillis();
         return stringRedisTemplate.opsForZSet().add(key, customerId + time, time);
     }

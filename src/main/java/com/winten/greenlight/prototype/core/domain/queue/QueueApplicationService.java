@@ -56,7 +56,6 @@ public class QueueApplicationService {
                         try { // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
                             customerKey = jwtUtil.getCustomerFromToken(greenlightToken).getCustomerId().split(":")[1];
                         } catch (Exception ignored) {}
-                        System.out.println("고객ID: " + customerKey);
                         return handleNewEntry(actionGroup, action, destinationUrl, customerKey);
                     });
             });
@@ -85,6 +84,7 @@ public class QueueApplicationService {
                                             var returnStatus = status == WaitStatus.WAITING ? WaitStatus.WAITING : WaitStatus.BYPASSED;
                                             return actionEventPublisher.publish(returnStatus, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
                                         }))
+                                        .then(actionRepository.putRequestLog(actionGroup.getId(), customerId)) // 활성사용자수 계산을 위한 접속기록 로깅
                                         .then(actionRepository.putSession(customerId.split(":")[1])) // 5분 동시접속자 수 계산을 위한 로깅
                                         .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), status, newJwt))
                                 );
