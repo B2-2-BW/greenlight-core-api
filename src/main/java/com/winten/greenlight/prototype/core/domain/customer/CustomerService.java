@@ -48,6 +48,7 @@ public class CustomerService {
                                 customer.setWaitTimeMs(waitTimeMs);
                                 return actionEventPublisher.publish(customer);
                             }))
+                            .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId()))
                             .then(actionRepository.putSession(customer.uniqueId())) // 5분 동시접속자 수 계산을 위한 로깅
                             .then(Mono.just(TicketVerificationResponse.success(customer)));
                 })

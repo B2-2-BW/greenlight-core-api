@@ -88,6 +88,12 @@ public class ActionRepository {
         return stringRedisTemplate.opsForZSet().add(key, customerId + time, time);
     }
 
+    public Mono<Boolean> putAccessLog(Long actionGroupId, String customerId) {
+        var key = keyBuilder.actionGroupAccessLog(actionGroupId);
+        var time = System.currentTimeMillis();
+        return stringRedisTemplate.opsForZSet().add(key, customerId + time, time);
+    }
+
     public Mono<Long> getWaitingCountByActionGroupId(Long actionGroupId) {
         var key = keyBuilder.queue(actionGroupId, WaitStatus.WAITING);
         return stringRedisTemplate.opsForZSet().size(key);
