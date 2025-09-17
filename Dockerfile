@@ -1,4 +1,4 @@
-FROM alpine/java:17.0.12
+FROM bitnami/java:17.0.13-12
 
 RUN apk --no-cache add tzdata
 ENV TZ=Asia/Seoul
