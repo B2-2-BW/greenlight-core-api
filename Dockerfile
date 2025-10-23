@@ -5,8 +5,8 @@ ENV TZ=Asia/Seoul
 
 WORKDIR /app
 
-COPY ./build/libs/greenlight-prototype-core-api-0.0.1-SNAPSHOT.jar /app/greenlight-prototype-core-api.jar
+COPY ./build/libs/greenlight-core-api-0.0.1-SNAPSHOT.jar /app/greenlight-core-api.jar
 
 EXPOSE 18080 18090
 
-ENTRYPOINT ["java", "-jar", "greenlight-prototype-core-api.jar"]
+ENTRYPOINT ["java", "-jar", "greenlight-core-api.jar"]
