@@ -4,14 +4,19 @@ import com.winten.greenlight.core.domain.action.CachedActionService;
 import com.winten.greenlight.core.domain.queue.CustomerQueueInfo;
 import com.winten.greenlight.core.domain.queue.QueueSseService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @RestController
 @RequestMapping("/waiting")
 @RequiredArgsConstructor
@@ -32,7 +37,11 @@ public class QueueSseController {
 
         return cachedActionService.getActionById(actionId)   // Mono<Action>
                 .flatMapMany(action -> queueSseService.connect(action.getActionGroupId(), customerId)) // Flux<CustomerQueueInfo
-                .map(queueInfo -> ServerSentEvent.builder(queueInfo).build());
+                .map(queueInfo -> ServerSentEvent.builder(queueInfo).build())
+                .onErrorResume(e -> { // unexpected
+                    log.warn("Unexpected error", e);
+                    return Flux.empty(); // close stream
+                });
     }
 
 
