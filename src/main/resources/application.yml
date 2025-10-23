@@ -1,4 +1,4 @@
-spring.application.name: greenlight-prototype-core-api
+spring.application.name: greenlight-core-api
 spring.profiles.active: local
 
 server:
