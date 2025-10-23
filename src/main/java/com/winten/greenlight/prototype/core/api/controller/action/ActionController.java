@@ -52,27 +52,4 @@ public class ActionController {
                 .map(ActionResponse::from);
     }
 
-
-    // TODO 어드민에서만 사용 가능하도록 API 인증 추가해야함
-    @DeleteMapping("/action-groups/{actionGroupId}/cache")
-    public Mono<ResponseEntity<String>> invalidateActionGroupCache(@PathVariable final Long actionGroupId) {
-        return cachedActionService.invalidateActionGroupCache(actionGroupId)
-                .then(Mono.just(ResponseEntity.ok("ok")));
-    }
-
-    // TODO 어드민에서만 사용 가능하도록 API 인증 추가해야함
-    @DeleteMapping("/actions/{actionId}/cache")
-    public Mono<ResponseEntity<String>> invalidateActionCache(@PathVariable final Long actionId) {
-        return cachedActionService.invalidateActionCache(actionId)
-                .then(Mono.just(ResponseEntity.ok("ok")));
-    }
-
-    // TODO 어드민에서만 사용 가능하도록 API 인증 추가해야함
-    @DeleteMapping("/actions/landing/{landingId}/cache")
-    public Mono<ResponseEntity<String>> invalidateActionCache(@PathVariable final String landingId) {
-        return cachedActionService.invalidateLandingActionMappingCache(landingId)
-                .then(Mono.just(ResponseEntity.ok("ok")));
-    }
-
-
 }
