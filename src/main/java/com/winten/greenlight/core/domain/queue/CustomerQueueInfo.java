@@ -23,6 +23,16 @@ public class CustomerQueueInfo {
     private Long position;
 
     /**
+     * 내 앞에 있는 사람 수(= position - 1)
+     */
+    private Long aheadCount;
+
+    /*
+     * 내 뒤에 있는 사람 수
+     */
+    private Long behindCount;
+
+    /**
      * 현재 대기열에 있는 전체 인원 수입니다.
      */
     private Long queueSize;
