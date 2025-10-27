@@ -16,7 +16,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class ActionController {
     private final CachedActionService cachedActionService;
-    private final ActionService actionDomainService;
+    private final ActionService actionService;
 
     @GetMapping("/action-groups")
     public Mono<ResponseEntity<ActionGroupResponse>> getActionGroupByActionId(@RequestParam final Long actionId) {
@@ -47,7 +47,7 @@ public class ActionController {
     public Flux<ActionResponse> getActionGroupByKey(
             @RequestHeader("X-GREENLIGHT-API-KEY") String greenlightApiKey
     ) {
-        return actionDomainService.getActionsFromApiKey(greenlightApiKey)
+        return actionService.getActionsFromApiKey(greenlightApiKey)
                 .map(ActionResponse::from);
     }
 

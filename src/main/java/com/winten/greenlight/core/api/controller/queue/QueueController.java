@@ -1,7 +1,7 @@
 package com.winten.greenlight.core.api.controller.queue;
 
 import com.winten.greenlight.core.api.controller.queue.dto.EntryRequest;
-import com.winten.greenlight.core.domain.queue.QueueApplicationService;
+import com.winten.greenlight.core.domain.queue.QueueService;
 import com.winten.greenlight.core.domain.customer.EntryTicket;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorType;
@@ -17,7 +17,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class QueueController {
 
-    private final QueueApplicationService queueApplicationService;
+    private final QueueService queueService;
 
     /**
      * 대기열 상태 확인 API 엔드포인트입니다.
@@ -35,6 +35,6 @@ public class QueueController {
         if (request.getActionId() == null) {
             return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "actionId is required."));
         }
-        return queueApplicationService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightToken);
+        return queueService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightToken);
     }
 }

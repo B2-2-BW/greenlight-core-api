@@ -103,7 +103,8 @@ public class QueueSseService {
                                         return CustomerQueueInfo.builder()
                                                 .customerId(customerId)
                                                 .estimatedWaitTime(estimatedWaitTime)
-                                                .queueSize(tuple.getT2())
+                                                .aheadCount(Math.max(tuple.getT1(), 0))
+                                                .behindCount(Math.max(tuple.getT2() - (tuple.getT1() + 1), 0))
                                                 .position(tuple.getT1() + 1) // Redis rank는 0-based → +1
                                                 .waitStatus(WaitStatus.WAITING)
                                                 .build();

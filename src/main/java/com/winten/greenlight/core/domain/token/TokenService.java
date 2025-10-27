@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
  */
 @Service
 @RequiredArgsConstructor
-public class TokenDomainService {
+public class TokenService {
     private final TokenRepository tokenRepository;
     private final JwtUtil jwtUtil;
 
