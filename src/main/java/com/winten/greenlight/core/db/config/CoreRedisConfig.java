@@ -1,6 +1,7 @@
 package com.winten.greenlight.core.db.config;
 
 import io.lettuce.core.ReadFrom;
+import io.lettuce.core.TimeoutOptions;
 import io.lettuce.core.cluster.ClusterClientOptions;
 import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
 import io.lettuce.core.resource.ClientResources;
@@ -29,13 +30,16 @@ public class CoreRedisConfig {
 
         var clusterClientOptions = ClusterClientOptions.builder()
                 .topologyRefreshOptions(topologyRefreshOptions)
+                .timeoutOptions(TimeoutOptions.enabled(Duration.ofSeconds(3)))
+                .maxRedirects(3)
+                .autoReconnect(true)
                 .build();
 
         var clientConfig = LettuceClientConfiguration.builder()
                 .clientResources(clientResources)
                 .clientOptions(clusterClientOptions)
                 .readFrom(ReadFrom.REPLICA_PREFERRED) // 읽기 작업을 슬레이브 노드에서 수행하도록 설정
-                .commandTimeout(Duration.ofSeconds(10)) // 커맨드 타임아웃 설정
+                .commandTimeout(Duration.ofSeconds(3)) // 커맨드 타임아웃 설정
                 .build();
 
         return new LettuceConnectionFactory(clusterConfig, clientConfig);

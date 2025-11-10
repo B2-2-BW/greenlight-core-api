@@ -2,9 +2,12 @@ package com.winten.greenlight.core.api.controller;
 
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorResponse;
+import com.winten.greenlight.core.support.error.ErrorType;
+import io.lettuce.core.RedisCommandTimeoutException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -18,6 +21,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RestControllerAdvice
 public class ApiControllerAdvice {
+
+    private final LettuceConnectionFactory lettuceConnectionFactory;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -40,6 +45,12 @@ public class ApiControllerAdvice {
                         }
                     })
                     .map(response -> ResponseEntity.status(ex.getErrorType().getStatus()).body(response));
+    }
+
+    @ExceptionHandler(RedisCommandTimeoutException.class)
+    public Mono<ResponseEntity<ErrorResponse>> redisCommandTimeoutExceptionHandler(RedisCommandTimeoutException ex) {
+        lettuceConnectionFactory.resetConnection();
+        throw CoreException.of(ErrorType.REDIS_ERROR, "redis command timeout 발생. 재연결 시도");
     }
 
     // TODO Map이 아닌 ApiResponse를 리턴하도록 개선하고, 에러메시지 표출방식 통일
