@@ -27,15 +27,10 @@ public class TicketVerificationResponse {
                 .verified(true)
                 .build();
     }
-    public static TicketVerificationResponse fail(Customer customer) {
-        return TicketVerificationResponse.fail(customer, null);
-    }
 
-    public static TicketVerificationResponse fail(Customer customer, String reason) {
+    public static TicketVerificationResponse fail(String customerId, String reason) {
         return TicketVerificationResponse.builder()
-                .actionId(customer.getActionId())
-                .actionGroupId(customer.getActionGroupId())
-                .customerId(customer.getCustomerId())
+                .customerId(customerId)
                 .verified(false)
                 .reason(reason)
                 .build();

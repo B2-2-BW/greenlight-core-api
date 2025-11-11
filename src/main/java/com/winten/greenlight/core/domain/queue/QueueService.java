@@ -1,6 +1,8 @@
 package com.winten.greenlight.core.domain.queue;
 
+import com.winten.greenlight.core.api.controller.customer.TicketVerificationResponse;
 import com.winten.greenlight.core.db.repository.redis.action.ActionRepository;
+import com.winten.greenlight.core.db.repository.redis.customer.CustomerRepository;
 import com.winten.greenlight.core.db.repository.redis.queue.QueueRepository;
 import com.winten.greenlight.core.domain.action.Action;
 import com.winten.greenlight.core.domain.action.ActionGroup;
@@ -10,8 +12,8 @@ import com.winten.greenlight.core.domain.customer.EntryTicket;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorType;
 import com.winten.greenlight.core.support.publisher.ActionEventPublisher;
-import com.winten.greenlight.core.support.util.JwtUtil;
 import com.winten.greenlight.core.domain.token.TokenService;
+import com.winten.greenlight.core.support.util.JwtUtil;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class QueueService {
     private final TokenService tokenService;
     private final CachedActionService cachedActionService;
     private final ActionEventPublisher actionEventPublisher;
+    private final CustomerRepository customerRepository;
     private final JwtUtil jwtUtil;
 
     /**
@@ -40,10 +43,10 @@ public class QueueService {
      * 이 메소드는 ActionRule을 검사하여 요청의 대기열 적용 여부를 동적으로 결정합니다.
      *
      * @param actionId      사용자가 접근하려는 액션의 ID
-     * @param greenlightToken (Optional) 고객이 보유한 대기열 토큰
+     * @param greenlightId (Optional) 고객이 보유한 대기열 토큰
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-        public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String destinationUrl, String greenlightToken) {
+        public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String destinationUrl, String greenlightId) {
             return cachedActionService.getActionById(actionId)
                 .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
                 .flatMap(action -> {
@@ -56,7 +59,7 @@ public class QueueService {
 
                             String customerKey = null;
                             try { // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
-                                customerKey = jwtUtil.getCustomerFromToken(greenlightToken).getCustomerId().split(":")[1];
+                                customerKey = greenlightId.split(":")[1];
                             } catch (Exception ignored) {}
                             return handleNewEntry(actionGroup, action, destinationUrl, customerKey);
                         });
@@ -81,13 +84,14 @@ public class QueueService {
                     .flatMap(isWaitingRequired -> {
                         WaitStatus status = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.READY;
                         // 5. 대기가 필요한 경우: WAITING 토큰 발급 및 대기열 등록
-                        return tokenService.issueToken(customerId, action, status.name(), destinationUrl)
-                                .flatMap(newJwt ->
+                        return tokenService.issueToken(customerId, action, destinationUrl)
+                                .flatMap(newJwt -> // TODO redis에 customerId 기준으로 값들을 저장하니, jwt 쓸 필요가 없어지지 않았나..? == 그냥 세션인듯?
                                     addUserToQueue(action.getActionGroupId(), customerId, status)
                                         .then(Mono.defer(() -> {
                                             var returnStatus = status == WaitStatus.WAITING ? WaitStatus.WAITING : WaitStatus.BYPASSED;
                                             return actionEventPublisher.publish(returnStatus, action.getActionGroupId(), action.getId(), customerId, System.currentTimeMillis());
                                         }))
+                                        .then(customerRepository.putCustomerToken(customerId, newJwt)) // 사용자 토큰 저장. TTL = 1일
                                         .thenReturn(new EntryTicket(action.getId(), customerId, destinationUrl, System.currentTimeMillis(), status, newJwt))
                                 );
                     })
@@ -101,11 +105,11 @@ public class QueueService {
      * @param actionId 액션 ID
      * @return Mono<String> 생성된 customerId
      */
-    public String generateCustomerId(Long actionId, String customerKey) {
+    private String generateCustomerId(Long actionId, String customerKey) {
         return actionId + ":" + customerKey;
     }
 
-    public String generateCustomerId(Long actionId) {
+    private String generateCustomerId(Long actionId) {
         return this.generateCustomerId(actionId, TSID.fast().toString());
     }
 
@@ -139,21 +143,59 @@ public class QueueService {
         return queueRepository.add(queueKey, customerId, System.currentTimeMillis());
     }
 
-    /**
-     * 사용자가 대기열에서 이탈(취소)했을 때 호출됩니다.
-     * 대기열에서 사용자를 제거하고 해당 토큰을 만료 처리합니다.
-     *
-     * @param customerId 고객 ID
-     * @param token      만료 처리할 JWT 토큰
-     * @return Mono<Void> 작업 완료 시그널
-     */
-    public Mono<Void> removeUserFromQueue(String customerId, String token) {
-        // TODO: 실제 대기열에서 사용자 제거 로직 (예: Redis Sorted Set에서 제거)
-        System.out.println("Removing customer " + customerId + " from queue.");
 
-        // 토큰 만료 처리
-        return tokenService.expireToken(token)
-                .doOnSuccess(v -> System.out.println("User " + customerId + " left queue. Token " + token + " expired."))
-                .then();
+    public Mono<TicketVerificationResponse> verifyTicket(String greenlightId) {
+        return customerRepository.getCustomerTokenById(greenlightId)
+                .flatMap(jwt -> {
+                    if (!jwtUtil.isTokenValid(jwt)) {
+                        return Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다."));
+                    }
+                    var customer = jwtUtil.getCustomerFromToken(jwt);
+                    var now = System.currentTimeMillis();
+                    var waitTimeMs = now - customer.getScore(); // 고객의 score와 지금 시간차만큼 대기한 것으로 판단
+                    customer.setScore(now);
+                    customer.setWaitTimeMs(waitTimeMs);
+                    return Mono.just(customer);
+                })
+                .flatMap(customer -> customerRepository.isCustomerReady(customer)
+                        .flatMap(isReady -> {
+                            if (!isReady) {
+                                return Mono.empty(); // 유효하지 않은 입장권인 경우 하단 switchIfEmpty에서 처리
+                            }
+                            return customerRepository.enqueueCustomer(customer, WaitStatus.ENTERED)
+                                    .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
+                                    .then(Mono.defer(() -> { // 모니터링 입장이벤트 로깅
+                                        customer.setWaitStatus(WaitStatus.ENTERED);
+                                        return actionEventPublisher.publish(customer);
+                                    }))
+                                    .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId()))
+                                    .then(actionRepository.putSession(customer.uniqueId())) // 5분 동시접속자 수 계산을 위한 로깅
+                                    .then(customerRepository.deleteCustomerTokenById(greenlightId))
+                                    .then(Mono.just(TicketVerificationResponse.success(customer)));
+                        })
+                )
+                .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(greenlightId, "유효한 고객 ID를 찾을 수 없습니다.")))
+                .onErrorResume(e -> {
+                    if (e instanceof CoreException) {
+                        return Mono.error(e);
+                    } else {
+                        return Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
+                    }
+                });
+
+    }
+
+    public Mono<Long> deleteCustomerFromQueue(String token) {
+        if (!jwtUtil.isTokenValid(token)) {
+            return Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다."));
+        }
+        var customer = jwtUtil.getCustomerFromToken(token);
+        return customerRepository.deleteCustomer(customer, WaitStatus.WAITING)
+                .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
+                .then(Mono.defer(() -> {
+                    customer.setWaitStatus(WaitStatus.CANCELLED);
+                    return actionEventPublisher.publish(customer);
+                }))
+                .then(Mono.just(1L));
     }
 }

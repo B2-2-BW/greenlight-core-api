@@ -9,16 +9,18 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+
 @Slf4j
 @Repository
 @RequiredArgsConstructor
 public class CustomerRepository {
-    private final ReactiveRedisTemplate<String, String> redisTemplate;
+    private final ReactiveRedisTemplate<String, String> stringRedisTemplate;
     private final RedisKeyBuilder keyBuilder;
 
     public Mono<Customer> enqueueCustomer(Customer customer, WaitStatus waitStatus) {
         String key = keyBuilder.queue(customer.getActionGroupId(), waitStatus);
-        return redisTemplate.opsForZSet()
+        return stringRedisTemplate.opsForZSet()
                 .add(key, customer.getCustomerId(), customer.getScore())
                 .flatMap(result -> Mono.just(customer));
     }
@@ -31,13 +33,27 @@ public class CustomerRepository {
      */
     public Mono<Long> deleteCustomer(Customer customer, WaitStatus waitStatus) {
         String key = keyBuilder.queue(customer.getActionGroupId(), waitStatus);
-        return redisTemplate.opsForZSet().remove(key, customer.getCustomerId());
+        return stringRedisTemplate.opsForZSet().remove(key, customer.getCustomerId());
     }
 
     public Mono<Boolean> isCustomerReady(Customer customer) {
         String key = keyBuilder.queue(customer.getActionGroupId(), WaitStatus.READY);
-        return redisTemplate.opsForZSet().rank(key, customer.getCustomerId())
+        return stringRedisTemplate.opsForZSet().rank(key, customer.getCustomerId())
                 .map(rank -> rank >= 0);
     }
 
+    public Mono<String> getCustomerTokenById(String customerId) {
+        String key = keyBuilder.customerToken(customerId);
+        return stringRedisTemplate.opsForValue().get(key);
+    }
+
+    public Mono<Boolean> putCustomerToken(String customerId, String token) {
+        String key = keyBuilder.customerToken(customerId);
+        return stringRedisTemplate.opsForValue().set(key, token, Duration.ofDays(1L));
+    }
+
+    public Mono<Boolean> deleteCustomerTokenById(String customerId) {
+        String key = keyBuilder.customerToken(customerId);
+        return stringRedisTemplate.opsForValue().delete(key);
+    }
 }
