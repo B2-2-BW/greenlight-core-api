@@ -28,54 +28,7 @@ public class CustomerService {
     //    - 입장권이 유효하지 않은 경우 대기열로 redirect
     //    - 유효한경우 진입 허용
     //    - 입장권 사용처리
-    public Mono<TicketVerificationResponse> verifyTicket(String token) {
-        if (!jwtUtil.isTokenValid(token)) {
-            return Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다."));
-        }
-        var customer = jwtUtil.getCustomerFromToken(token);
-        var now = System.currentTimeMillis();
-        var waitTimeMs = now - customer.getScore();
-        customer.setScore(now);
-        return customerRepository.isCustomerReady(customer)
-                .flatMap(isReady -> {
-                    if (!isReady) {
-                        return Mono.empty(); // 유효하지 않은 입장권인 경우 하단 switchIfEmpty에서 처리
-                    }
-                    return customerRepository.enqueueCustomer(customer, WaitStatus.ENTERED)
-                            .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
-                            .then(Mono.defer(() -> { // 모니터링 입장이벤트 로깅
-                                customer.setWaitStatus(WaitStatus.ENTERED);
-                                customer.setWaitTimeMs(waitTimeMs);
-                                return actionEventPublisher.publish(customer);
-                            }))
-                            .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId()))
-                            .then(actionRepository.putSession(customer.uniqueId())) // 5분 동시접속자 수 계산을 위한 로깅
-                            .then(Mono.just(TicketVerificationResponse.success(customer)));
-                })
-                .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(customer, "유효한 고객 ID를 찾을 수 없습니다.")))
-                .onErrorResume(e -> {
-                    if (e instanceof CoreException) {
-                        return Mono.error(e);
-                    } else {
-                        return Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
-                    }
-                })
-                ;
-    }
 
-    public Mono<Long> deleteCustomerFromQueue(String token) {
-        if (!jwtUtil.isTokenValid(token)) {
-            return Mono.error(CoreException.of(ErrorType.INVALID_TOKEN, "유효하지 않은 입장권입니다."));
-        }
-        var customer = jwtUtil.getCustomerFromToken(token);
-        return customerRepository.deleteCustomer(customer, WaitStatus.WAITING)
-                .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
-                .then(Mono.defer(() -> {
-                    customer.setWaitStatus(WaitStatus.CANCELLED);
-                    return actionEventPublisher.publish(customer);
-                }))
-                .then(Mono.just(1L));
-    }
 
     public Mono<Boolean> insertTestRequestLog(Long actionGroupId) {
         String customerId = TSID.fast().toString();
