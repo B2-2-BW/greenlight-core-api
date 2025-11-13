@@ -59,46 +59,6 @@ public class TokenRepository {
     }
 
     /**
-     * Redis에 저장된 토큰의 상태(status) 필드만 업데이트합니다.
-     *
-     * @param jwt    업데이트할 JWT 문자열
-     * @param status 변경할 상태 값 (예: "EXPIRED", "ENTERED")
-     * @return Mono<Void> 작업 완료 시그널
-     */
-    public Mono<Void> updateTokenStatus(String jwt, String status) {
-        String key = keyBuilder.token(jwt);
-        ReactiveHashOperations<String, String, String> hashOps = redisTemplate.opsForHash();
-        return hashOps.put(key, "status", status).then(); // "status" 필드만 업데이트
-    }
-
-    /**
-     * Redis에 저장된 토큰의 상태(status) 필드를 조회합니다.
-     *
-     * @param jwt 조회할 JWT 문자열
-     * @return Mono<String> 상태 값을 담은 Mono
-     */
-    public Mono<String> getTokenStatus(String jwt) {
-        String key = keyBuilder.token(jwt);
-        ReactiveHashOperations<String, String, String> hashOps = redisTemplate.opsForHash();
-        return hashOps.get(key, "status"); // "status" 필드 값 조회
-    }
-
-    /**
-     * 고객 ID와 Action ID를 기반으로 유효한 JWT를 찾습니다.
-     * 이 로직은 Redis에 별도의 인덱스(예: String 타입의 "customer:{customerId}:action:{actionId}" -> JWT)가
-     * 미리 저장되어 있어야 합니다. (JWT 발급 시 함께 저장되어야 함)
-     *
-     * @param customerId 고객 ID
-     * @param actionId   Action ID
-     * @return Mono<String> 찾은 JWT 문자열 (없으면 Mono.empty())
-     */
-
-    public Mono<String> findJwtByCustomerIdAndActionId(String customerId, Long actionId) {
-        String indexKey = CUSTOMER_ACTION_TO_JWT_KEY_PREFIX + customerId + ":" + actionId;
-        return redisTemplate.opsForValue().get(indexKey);
-    }
-
-    /**
      * Redis에서 특정 JWT 토큰과 관련된 모든 메타데이터를 삭제합니다.
      *
      * @param jwt 삭제할 JWT 문자열
