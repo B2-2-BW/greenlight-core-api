@@ -45,19 +45,20 @@ public class CustomerRepository {
 
     public Mono<String> getCustomerTokenById(String customerId) {
         var actionId = CustomerUtil.parseActionIdFromCustomerId(customerId);
-        String key = keyBuilder.customerToken(actionId, customerId);
-        return stringRedisTemplate.opsForValue().get(key);
+        String key = keyBuilder.customerToken(actionId);
+        return stringRedisTemplate.opsForHash().get(key, customerId)
+                .map(v -> ((String) v));
     }
 
     public Mono<Boolean> putCustomerToken(String customerId, String token) {
         var actionId = CustomerUtil.parseActionIdFromCustomerId(customerId);
-        String key = keyBuilder.customerToken(actionId, customerId);
-        return stringRedisTemplate.opsForValue().set(key, token, Duration.ofDays(1L));
+        String key = keyBuilder.customerToken(actionId);
+        return stringRedisTemplate.opsForHash().put(key, customerId, token);
     }
 
-    public Mono<Boolean> deleteCustomerTokenById(String customerId) {
+    public Mono<Long> deleteCustomerTokenById(String customerId) {
         var actionId = CustomerUtil.parseActionIdFromCustomerId(customerId);
-        String key = keyBuilder.customerToken(actionId, customerId);
-        return stringRedisTemplate.opsForValue().delete(key);
+        String key = keyBuilder.customerToken(actionId);
+        return stringRedisTemplate.opsForHash().remove(key, customerId);
     }
 }
