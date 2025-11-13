@@ -33,8 +33,8 @@ public class RedisKeyBuilder {
     }
 
     // customerId로 JWT를 찾는 인덱스 키 (String)
-    public String customerToken(String customerId) {
-        return prefix + ":customer:action:jwt:" + customerId;
+    public String customerToken(Long actionId, String customerId) {
+        return prefix + ":customer:action:" + actionId + ":jwt:" + customerId;
     }
     // 대기열 키 (기존 queue 메서드와 유사하지만, actionId를 직접 받도록)
     // 기존 queue(Long actionGroupId, WaitStatus waitStatus)와는 다름

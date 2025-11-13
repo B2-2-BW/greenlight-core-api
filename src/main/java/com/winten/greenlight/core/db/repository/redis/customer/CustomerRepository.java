@@ -2,6 +2,7 @@ package com.winten.greenlight.core.db.repository.redis.customer;
 
 import com.winten.greenlight.core.domain.customer.Customer;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
+import com.winten.greenlight.core.support.util.CustomerUtil;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,17 +44,20 @@ public class CustomerRepository {
     }
 
     public Mono<String> getCustomerTokenById(String customerId) {
-        String key = keyBuilder.customerToken(customerId);
+        var actionId = CustomerUtil.parseActionIdFromCustomerId(customerId);
+        String key = keyBuilder.customerToken(actionId, customerId);
         return stringRedisTemplate.opsForValue().get(key);
     }
 
     public Mono<Boolean> putCustomerToken(String customerId, String token) {
-        String key = keyBuilder.customerToken(customerId);
+        var actionId = CustomerUtil.parseActionIdFromCustomerId(customerId);
+        String key = keyBuilder.customerToken(actionId, customerId);
         return stringRedisTemplate.opsForValue().set(key, token, Duration.ofDays(1L));
     }
 
     public Mono<Boolean> deleteCustomerTokenById(String customerId) {
-        String key = keyBuilder.customerToken(customerId);
+        var actionId = CustomerUtil.parseActionIdFromCustomerId(customerId);
+        String key = keyBuilder.customerToken(actionId, customerId);
         return stringRedisTemplate.opsForValue().delete(key);
     }
 }
