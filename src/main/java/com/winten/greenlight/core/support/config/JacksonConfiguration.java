@@ -1,5 +1,6 @@
 package com.winten.greenlight.core.support.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -21,6 +22,8 @@ public class JacksonConfiguration {
 
         // 2) 타임스탬프 대신 문자열(예: 2024-06-12T15:00:00+09:00) 형태로 저장
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         // 3) 기본 타임존을 한국으로 고정
         objectMapper.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
