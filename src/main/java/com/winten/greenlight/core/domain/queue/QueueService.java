@@ -48,7 +48,8 @@ public class QueueService {
      */
     public Mono<EntryTicket> checkLanding(String landingId, String destinationUrl, String greenlightId) {
         return cachedActionService.getActionByLandingId(landingId)
-                .flatMap(action -> checkOrEnterQueue(action.getId(), destinationUrl, greenlightId));
+                .flatMap(action -> checkOrEnterQueue(action.getId(), destinationUrl, greenlightId))
+                .switchIfEmpty(Mono.just(EntryTicket.builder().waitStatus(WaitStatus.BYPASSED).build()));
     }
 
     public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String destinationUrl, String greenlightId) {
