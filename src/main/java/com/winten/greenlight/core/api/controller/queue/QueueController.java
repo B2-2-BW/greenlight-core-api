@@ -3,6 +3,7 @@ package com.winten.greenlight.core.api.controller.queue;
 import com.winten.greenlight.core.api.controller.customer.CustomerLeaveRequest;
 import com.winten.greenlight.core.api.controller.customer.TicketVerificationResponse;
 import com.winten.greenlight.core.api.controller.queue.dto.EntryRequest;
+import com.winten.greenlight.core.api.controller.queue.dto.LandingRequest;
 import com.winten.greenlight.core.domain.queue.QueueService;
 import com.winten.greenlight.core.domain.customer.EntryTicket;
 import com.winten.greenlight.core.support.error.CoreException;
@@ -39,6 +40,25 @@ public class QueueController {
             return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "actionId is required."));
         }
         return queueService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightId);
+    }
+
+    /**
+     * 대기열 상태 확인 API 엔드포인트입니다.
+     * 사용자가 특정 액션(URL)에 접근할 때 호출되어, 대기열 적용 대상인지를 판단하여 상태를 반환합니다.
+     *
+     * @param request      대기열 진입 요청 정보 (actionId, requestParams)
+     * @param greenlightId (Optional) 고객이 보유한 대기열 ID
+     * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
+     */
+    @PostMapping("/api/v1/queue/check-landing")
+    public Mono<EntryTicket> checkLanding(
+            @RequestBody LandingRequest request,
+            @RequestHeader(name = GREENLIGHT_ID_HEADER, required = false) String greenlightId
+    ) {
+        if (request.getLandingId() == null) {
+            return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "landingId is required."));
+        }
+        return queueService.checkLanding(request.getLandingId(), request.getDestinationUrl(), greenlightId);
     }
 
     // 기존 CustomerController에 있던 API를 QueueController로 이관. 레거시 지원을 위해 기존 매핑 유지

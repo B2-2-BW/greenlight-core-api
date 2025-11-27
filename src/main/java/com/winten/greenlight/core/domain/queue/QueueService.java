@@ -42,28 +42,33 @@ public class QueueService {
      * 사용자의 대기열 상태를 확인하고, 현재 상태에 따라 적절한 응답을 반환합니다.
      * 이 메소드는 ActionRule을 검사하여 요청의 대기열 적용 여부를 동적으로 결정합니다.
      *
-     * @param actionId      사용자가 접근하려는 액션의 ID
+     * @param landingId      사용자가 접근하려는 랜딩 ID
      * @param greenlightId (Optional) 고객이 보유한 대기열 토큰
      * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
      */
-        public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String destinationUrl, String greenlightId) {
-            return cachedActionService.getActionById(actionId)
-                .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
-                .flatMap(action -> {
-                    // 2. 액션이 비활성화된 경우, DISABLED 처리
-                    return cachedActionService.getActionGroupById(action.getActionGroupId())
-                        .flatMap(actionGroup -> {
-                            if (!actionGroup.getEnabled()) {
-                                return Mono.just(new EntryTicket(action.getId(), null, destinationUrl, System.currentTimeMillis(), WaitStatus.DISABLED, null));
-                            }
+    public Mono<EntryTicket> checkLanding(String landingId, String destinationUrl, String greenlightId) {
+        return cachedActionService.getActionByLandingId(landingId)
+                .flatMap(action -> checkOrEnterQueue(action.getId(), destinationUrl, greenlightId));
+    }
 
-                            String customerKey = null;
-                            try { // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
-                                customerKey = greenlightId.split(":")[1];
-                            } catch (Exception ignored) {}
-                            return handleNewEntry(actionGroup, action, destinationUrl, customerKey);
-                        });
-                });
+    public Mono<EntryTicket> checkOrEnterQueue(Long actionId, String destinationUrl, String greenlightId) {
+        return cachedActionService.getActionById(actionId)
+            .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
+            .flatMap(action -> {
+                // 2. 액션이 비활성화된 경우, DISABLED 처리
+                return cachedActionService.getActionGroupById(action.getActionGroupId())
+                    .flatMap(actionGroup -> {
+                        if (!actionGroup.getEnabled()) {
+                            return Mono.just(new EntryTicket(action.getId(), null, destinationUrl, System.currentTimeMillis(), WaitStatus.DISABLED, null));
+                        }
+
+                        String customerKey = null;
+                        try { // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
+                            customerKey = greenlightId.split(":")[1];
+                        } catch (Exception ignored) {}
+                        return handleNewEntry(actionGroup, action, destinationUrl, customerKey);
+                    });
+            });
     }
 
     /**
