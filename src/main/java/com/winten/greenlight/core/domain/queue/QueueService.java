@@ -17,6 +17,7 @@ import com.winten.greenlight.core.support.util.JwtUtil;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -25,6 +26,7 @@ import reactor.core.publisher.Mono;
  * 클라이언트의 요청을 받아 여러 도메인 서비스(Action, Queue)를 조율하여
  * 대기열 적용 여부를 판단하고 상태를 반환합니다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class QueueService {
@@ -170,17 +172,24 @@ public class QueueService {
                             }
                             return customerRepository.enqueueCustomer(customer, WaitStatus.ENTERED)
                                     .then(customerRepository.deleteCustomer(customer, WaitStatus.READY))
+                                    .doOnNext(e -> log.error("[temp error]" + customer.getCustomerId()))
                                     .then(Mono.defer(() -> { // 모니터링 입장이벤트 로깅
                                         customer.setWaitStatus(WaitStatus.ENTERED);
                                         return actionEventPublisher.publish(customer);
                                     }))
+                                    .doOnNext(e -> log.error("[temp error] publish"))
                                     .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId()))
+                                    .doOnNext(e -> log.error("[temp error] accessLog"))
                                     .then(actionRepository.putSession(customer.uniqueId())) // 5분 동시접속자 수 계산을 위한 로깅
+                                    .doOnNext(e -> log.error("[temp error] putSession"))
                                     .then(customerRepository.deleteCustomerTokenById(greenlightId))
-                                    .then(Mono.just(TicketVerificationResponse.success(customer)));
+                                    .doOnNext(e -> log.error("[temp error] deleteCustomerTokenById"))
+                                    .then(Mono.just(TicketVerificationResponse.success(customer)))
+                                    .doOnNext(e -> log.error("[temp error] responseSuccess"));
                         })
                 )
-                .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(greenlightId, "유효한 고객 ID를 찾을 수 없습니다.")))
+                .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(greenlightId, "유효한 고객 ID를 찾을 수 없습니다."))
+                        .doOnNext(e -> log.error("[temp error] fail - 유효한 고객 ID 없음")))
                 .onErrorResume(e -> {
                     if (e instanceof CoreException) {
                         return Mono.error(e);

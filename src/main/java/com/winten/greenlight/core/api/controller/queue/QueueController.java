@@ -9,6 +9,7 @@ import com.winten.greenlight.core.domain.customer.EntryTicket;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -16,6 +17,7 @@ import reactor.core.publisher.Mono;
 /**
  * 외부 HTTP 요청을 받아 Application Service로 전달하고, 결과를 응답(Response)합니다.
  * */
+@Slf4j
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -67,7 +69,8 @@ public class QueueController {
             @RequestHeader(name = GREENLIGHT_ID_HEADER) String greenlightId
     ) {
         return queueService.verifyTicket(greenlightId)
-                    .map(ResponseEntity::ok);
+                    .map(ResponseEntity::ok)
+                .doOnNext(ticket -> log.error("[temp log]" + ticket.toString()));
     }
 
     @PostMapping("/api/v1/queue/leave")
