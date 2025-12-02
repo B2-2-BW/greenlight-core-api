@@ -49,7 +49,7 @@ public class QueueService {
     public Mono<CustomerSession> checkLanding(String landingId, String destinationUrl, String greenlightId) {
         return actionService.getActionByLandingId(landingId)
                 .flatMap(action -> checkOrEnterQueue(action.getId(), destinationUrl != null ? destinationUrl : action.getLandingDestinationUrl(), greenlightId))
-                .switchIfEmpty(Mono.just(CustomerSession.bypassed()));
+                .switchIfEmpty(Mono.error(CoreException.of(ErrorType.ACTION_NOT_FOUND, "LandingId에 해당하는 Action을 찾을 수 없습니다. " + landingId)));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Long actionId, String destinationUrl, String oldCustomerId) {

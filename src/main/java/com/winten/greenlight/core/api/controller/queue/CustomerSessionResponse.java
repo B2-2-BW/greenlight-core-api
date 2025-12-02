@@ -7,6 +7,7 @@ import lombok.Data;
 @Data
 public class CustomerSessionResponse {
     private Long actionId;
+    private Long actionGroupId;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String customerId;
     private String destinationUrl;
