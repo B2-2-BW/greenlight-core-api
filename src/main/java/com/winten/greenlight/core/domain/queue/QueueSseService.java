@@ -1,6 +1,6 @@
 package com.winten.greenlight.core.domain.queue;
 
-import com.winten.greenlight.core.domain.action.CachedActionService;
+import com.winten.greenlight.core.domain.action.ActionService;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorType;
@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @RequiredArgsConstructor
 public class QueueSseService {
-    private final CachedActionService cachedActionService;
+    private final ActionService actionService;
     private final RedisKeyBuilder redisKeyBuilder;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
 
@@ -95,7 +95,7 @@ public class QueueSseService {
                         redisTemplate.opsForZSet().size(waitingKey)
                 )
                 // rank 및 size가 Waiting Queue에 있다면 대기중
-                .flatMap(tuple -> cachedActionService.getActionGroupById(actionGroupId)
+                .flatMap(tuple -> actionService.getActionGroupById(actionGroupId)
                                     .map(actionGroup -> {
                                         Long estimatedWaitTime = actionGroup.getMaxTrafficPerSecond() > 0  //  = 대기 position / 최대활성사용자수, 나누기 0 방어로직 추가
                                                 ? Math.round((double) tuple.getT1() / actionGroup.getMaxTrafficPerSecond())
