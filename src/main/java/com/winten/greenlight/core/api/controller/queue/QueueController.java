@@ -1,7 +1,5 @@
 package com.winten.greenlight.core.api.controller.queue;
 
-import com.winten.greenlight.core.api.controller.customer.CustomerLeaveRequest;
-import com.winten.greenlight.core.api.controller.customer.TicketVerificationResponse;
 import com.winten.greenlight.core.domain.customer.CustomerConverter;
 import com.winten.greenlight.core.domain.queue.QueueService;
 import com.winten.greenlight.core.support.error.CoreException;

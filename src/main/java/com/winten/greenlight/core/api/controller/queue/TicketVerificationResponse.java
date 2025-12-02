@@ -1,4 +1,4 @@
-package com.winten.greenlight.core.api.controller.customer;
+package com.winten.greenlight.core.api.controller.queue;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.winten.greenlight.core.domain.customer.CustomerSession;

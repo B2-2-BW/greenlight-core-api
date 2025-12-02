@@ -1,12 +1,12 @@
 package com.winten.greenlight.core.domain.queue;
 
-import com.winten.greenlight.core.api.controller.customer.TicketVerificationResponse;
+import com.winten.greenlight.core.api.controller.queue.TicketVerificationResponse;
 import com.winten.greenlight.core.db.repository.redis.action.ActionRepository;
 import com.winten.greenlight.core.db.repository.redis.customer.CustomerRepository;
 import com.winten.greenlight.core.db.repository.redis.queue.QueueRepository;
 import com.winten.greenlight.core.domain.action.Action;
 import com.winten.greenlight.core.domain.action.ActionGroup;
-import com.winten.greenlight.core.domain.action.CachedActionService;
+import com.winten.greenlight.core.domain.action.ActionService;
 import com.winten.greenlight.core.domain.customer.CustomerSession;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
@@ -34,7 +34,7 @@ public class QueueService {
     private final RedisKeyBuilder redisKeyBuilder;
     private final QueueRepository queueRepository;
     private final ActionRepository actionRepository;
-    private final CachedActionService cachedActionService;
+    private final ActionService actionService;
     private final ActionEventPublisher actionEventPublisher;
     private final CustomerRepository customerRepository;
 
@@ -47,17 +47,17 @@ public class QueueService {
      * @return Mono<CustomerSession> 대기 상태 및 토큰 정보
      */
     public Mono<CustomerSession> checkLanding(String landingId, String destinationUrl, String greenlightId) {
-        return cachedActionService.getActionByLandingId(landingId)
+        return actionService.getActionByLandingId(landingId)
                 .flatMap(action -> checkOrEnterQueue(action.getId(), destinationUrl != null ? destinationUrl : action.getLandingDestinationUrl(), greenlightId))
                 .switchIfEmpty(Mono.just(CustomerSession.bypassed()));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Long actionId, String destinationUrl, String oldCustomerId) {
-        return cachedActionService.getActionById(actionId)
+        return actionService.getActionById(actionId)
             .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
             .flatMap(action -> {
                 // 2. 액션이 비활성화된 경우, DISABLED 처리
-                return cachedActionService.getActionGroupById(action.getActionGroupId())
+                return actionService.getActionGroupById(action.getActionGroupId())
                     .flatMap(actionGroup -> {
                         if (!actionGroup.getEnabled()) {
                             return Mono.just(CustomerSession.bypassed());
