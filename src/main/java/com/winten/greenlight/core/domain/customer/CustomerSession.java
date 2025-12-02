@@ -9,14 +9,23 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Customer {
+public class CustomerSession {
     private Long actionGroupId;
     private Long actionId;
     private String customerId;
-    private Long score;
+    private Long timestamp;
     private WaitStatus waitStatus;
+    private boolean verified;
+    private Long accessCount;
     private String destinationUrl;
     private Long waitTimeMs;
+
+    public static CustomerSession bypassed() {
+        return CustomerSession.builder()
+                .timestamp(System.currentTimeMillis())
+                .waitStatus(WaitStatus.BYPASSED)
+                .build();
+    }
 
     public String uniqueId() {
         try {

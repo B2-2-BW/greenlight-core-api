@@ -27,15 +27,7 @@ public class RedisKeyBuilder {
     public String queue(Long actionGroupId, WaitStatus waitStatus) {
         return prefix + ":action_group:" + actionGroupId + ":queue:" + waitStatus;
     }
-    // 토큰 메타데이터를 저장하는 Hash의 키
-    public String token(String jwt) {
-        return prefix + ":token:" + jwt;
-    }
 
-    // customerId로 JWT를 찾는 인덱스 키 (String)
-    public String customerToken(Long actionId) {
-        return prefix + ":customer:action:" + actionId + ":token";
-    }
     // 대기열 키 (기존 queue 메서드와 유사하지만, actionId를 직접 받도록)
     // 기존 queue(Long actionGroupId, WaitStatus waitStatus)와는 다름
     public String waitingQueue(Long actionGroupId) {
@@ -66,7 +58,12 @@ public class RedisKeyBuilder {
         return prefix + ":action_group:" + actionGroupId + ":access_log";
     }
 
+    // TODO 활성사용자 수 체크인데, session으로 이름지어져있음. 추후 key 명칭 변경 필요
     public String actionGroupSession() {
         return prefix + ":session";
+    }
+
+    public String customerSession(String customerId) {
+        return prefix + ":customer:session:" + customerId;
     }
 }

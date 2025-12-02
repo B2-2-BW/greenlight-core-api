@@ -44,10 +44,9 @@ public class QueueSseController {
                 });
     }
 
-
     // 고객 상태 조회
     // 고객이 어떤 queue에 들어가있는지 확인
-    @GetMapping("/status")
+//    @GetMapping("/status")
     public Mono<CustomerQueueInfo> findUserQueueStatus(Long actionGroupId, String customerId) {
         return queueSseService.findUserQueueInfo(actionGroupId, customerId);
     }

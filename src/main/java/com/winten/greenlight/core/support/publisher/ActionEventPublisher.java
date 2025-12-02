@@ -1,6 +1,6 @@
 package com.winten.greenlight.core.support.publisher;
 
-import com.winten.greenlight.core.domain.customer.Customer;
+import com.winten.greenlight.core.domain.customer.CustomerSession;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +21,14 @@ public class ActionEventPublisher {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final RedisKeyBuilder keyBuilder;
 
-    public Mono<RecordId> publish(Customer customer) {
+    public Mono<RecordId> publish(CustomerSession customerSession) {
         return this.publish(
-                customer.getWaitStatus(),
-                customer.getActionGroupId(),
-                customer.getActionId(),
-                customer.getCustomerId(),
+                customerSession.getWaitStatus(),
+                customerSession.getActionGroupId(),
+                customerSession.getActionId(),
+                customerSession.getCustomerId(),
                 System.currentTimeMillis(),
-                customer.getWaitTimeMs()
+                customerSession.getWaitTimeMs()
         );
     }
 

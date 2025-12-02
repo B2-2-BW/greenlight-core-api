@@ -1,4 +1,4 @@
-package com.winten.greenlight.core.api.controller.queue.dto;
+package com.winten.greenlight.core.api.controller.queue;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -18,32 +18,32 @@ public class ActionController {
     private final CachedActionService cachedActionService;
     private final ActionService actionService;
 
-    @GetMapping("/action-groups")
+//    @GetMapping("/action-groups")
     public Mono<ResponseEntity<ActionGroupResponse>> getActionGroupByActionId(@RequestParam final Long actionId) {
         return cachedActionService.getActionById(actionId)
                 .flatMap(action -> cachedActionService.getActionGroupById(action.getActionGroupId()))
                 .flatMap(actionGroup -> Mono.just(ResponseEntity.ok(ActionGroupResponse.from(actionGroup))));
     }
 
-    @GetMapping("/action-groups/{actionGroupId}")
+//    @GetMapping("/action-groups/{actionGroupId}")
     public Mono<ResponseEntity<ActionGroupResponse>> getActionGroupById(@PathVariable final Long actionGroupId) {
         return cachedActionService.getActionGroupById(actionGroupId)
                 .flatMap(action -> Mono.just(ResponseEntity.ok(ActionGroupResponse.from(action))));
     }
 
-    @GetMapping("/actions/{actionId}")
+//    @GetMapping("/actions/{actionId}")
     public Mono<ResponseEntity<ActionResponse>> getActionById(@PathVariable final Long actionId) {
         return cachedActionService.getActionById(actionId)
                 .flatMap(action -> Mono.just(ResponseEntity.ok(ActionResponse.from(action))));
     }
 
-    @GetMapping("/actions/landing/{landingId}")
+//    @GetMapping("/actions/landing/{landingId}")
     public Mono<ResponseEntity<ActionResponse>> getActionByLandingId(@PathVariable final String landingId) {
         return cachedActionService.getActionByLandingId(landingId)
                 .flatMap(action -> Mono.just(ResponseEntity.ok(ActionResponse.from(action))));
     }
 
-    @GetMapping("/actions")
+//    @GetMapping("/actions")
     public Flux<ActionResponse> getActionGroupByKey(
             @RequestHeader("X-GREENLIGHT-API-KEY") String greenlightApiKey
     ) {
