@@ -13,9 +13,10 @@ public enum ErrorType {
     CUSTOMER_NOT_FOUND(HttpStatus.NOT_FOUND, ErrorCode.E404, "Customer not found.", LogLevel.INFO),
     BAD_REQUEST(HttpStatus.BAD_REQUEST, ErrorCode.E404, "Bad Request.", LogLevel.INFO),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, ErrorCode.E401, "Invalid token.", LogLevel.INFO),
-    REDIS_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "An unexpected error has occurred while accessing data." , LogLevel.ERROR ),
-    INVALID_DATA(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "Data is not valid." , LogLevel.WARN ),
-    JSON_CONVERT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "Json conversion error", LogLevel.WARN ),
+    REDIS_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "An unexpected error has occurred while accessing data." , LogLevel.ERROR),
+    INVALID_DATA(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "Data is not valid." , LogLevel.WARN),
+    JSON_CONVERT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "Json conversion error", LogLevel.WARN),
+    NOT_MODIFIED(HttpStatus.NOT_MODIFIED, ErrorCode.E304, "Not Modified", LogLevel.INFO),
     ;
 
     private final HttpStatus status; //HTTP 응답 코드

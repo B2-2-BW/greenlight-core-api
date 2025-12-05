@@ -1,6 +1,7 @@
 package com.winten.greenlight.core.api.controller.queue;
 
 import com.winten.greenlight.core.domain.action.ActionService;
+import com.winten.greenlight.core.domain.action.CachedActionService;
 import com.winten.greenlight.core.domain.queue.CustomerQueueInfo;
 import com.winten.greenlight.core.domain.queue.QueueSseService;
 import com.winten.greenlight.core.support.util.CustomerUtil;
@@ -22,7 +23,7 @@ import reactor.core.publisher.Flux;
 @RequiredArgsConstructor
 public class QueueSseController {
     private final QueueSseService queueSseService;
-    private final ActionService actionService;
+    private final CachedActionService cachedActionService;
 
     // SSE 연동
     @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -34,7 +35,7 @@ public class QueueSseController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "customerId가 존재하지 않습니다.");
         }
         var actionId = CustomerUtil.parseActionIdFromCustomerId(customerId);
-        return actionService.getActionById(actionId)   // Mono<Action>
+        return cachedActionService.getActionById(actionId)   // Mono<Action>
                 .flatMapMany(action -> queueSseService.connect(action.getActionGroupId(), customerId)) // Flux<CustomerQueueInfo
                 .map(queueInfo -> ServerSentEvent.builder(queueInfo).build())
                 .onErrorResume(e -> { // unexpected

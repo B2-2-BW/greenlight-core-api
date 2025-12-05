@@ -73,4 +73,21 @@ public class QueueController {
                     .map(ResponseEntity::ok)
                     .doOnNext(ticket -> log.error("[temp log]" + ticket.toString()));
     }
+
+    /**
+     * Action 목록 조회기능 추가
+     *
+     * @param request
+     * @param greenlightApiKey
+     * @return
+     */
+    // TODO 보안키 적용 필요함
+    @GetMapping("/api/v1/config")
+    public Mono<ResponseEntity<QueueConfigResponse>> getGreenlightStatus(
+            QueueConfigRequest request,
+            @RequestHeader(value = "X-GREENLIGHT-API-KEY", required = false) String greenlightApiKey // TODO Site ID로 조회 가능한 Action 목록 제어
+    ) {
+        return queueService.getQueueConfig(request.getVersion())
+                .map(config -> ResponseEntity.ok(customerConverter.toResponse(config)));
+    }
 }
