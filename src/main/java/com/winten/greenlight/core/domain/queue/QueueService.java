@@ -4,9 +4,7 @@ import com.winten.greenlight.core.api.controller.queue.TicketVerificationRespons
 import com.winten.greenlight.core.db.repository.redis.action.ActionRepository;
 import com.winten.greenlight.core.db.repository.redis.customer.CustomerRepository;
 import com.winten.greenlight.core.db.repository.redis.queue.QueueRepository;
-import com.winten.greenlight.core.domain.action.Action;
-import com.winten.greenlight.core.domain.action.ActionGroup;
-import com.winten.greenlight.core.domain.action.ActionService;
+import com.winten.greenlight.core.domain.action.*;
 import com.winten.greenlight.core.domain.customer.CustomerSession;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
@@ -34,9 +32,10 @@ public class QueueService {
     private final RedisKeyBuilder redisKeyBuilder;
     private final QueueRepository queueRepository;
     private final ActionRepository actionRepository;
-    private final ActionService actionService;
+    private final ConfigVersionContextHolder configVersionContextHolder;
     private final ActionEventPublisher actionEventPublisher;
     private final CustomerRepository customerRepository;
+    private final CachedActionService cachedActionService;
 
     /**
      * 사용자의 대기열 상태를 확인하고, 현재 상태에 따라 적절한 응답을 반환합니다.
@@ -47,17 +46,17 @@ public class QueueService {
      * @return Mono<CustomerSession> 대기 상태 및 토큰 정보
      */
     public Mono<CustomerSession> checkLanding(String landingId, String destinationUrl, String greenlightId) {
-        return actionService.getActionByLandingId(landingId)
+        return cachedActionService.getActionByLandingId(landingId)
                 .flatMap(action -> checkOrEnterQueue(action.getId(), destinationUrl != null ? destinationUrl : action.getLandingDestinationUrl(), greenlightId))
                 .switchIfEmpty(Mono.error(CoreException.of(ErrorType.ACTION_NOT_FOUND, "LandingId에 해당하는 Action을 찾을 수 없습니다. " + landingId)));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Long actionId, String destinationUrl, String oldCustomerId) {
-        return actionService.getActionById(actionId)
+        return cachedActionService.getActionById(actionId)
             .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
             .flatMap(action -> {
                 // 2. 액션이 비활성화된 경우, DISABLED 처리
-                return actionService.getActionGroupById(action.getActionGroupId())
+                return cachedActionService.getActionGroupById(action.getActionGroupId())
                     .flatMap(actionGroup -> {
                         if (!actionGroup.getEnabled()) {
                             return Mono.just(CustomerSession.bypassed());
@@ -110,7 +109,7 @@ public class QueueService {
                 });
     }
 
-    public String generateCustomerKey() {
+    private String generateCustomerKey() {
         return TSID.fast().toString();
     }
     /**
@@ -202,6 +201,18 @@ public class QueueService {
                         return Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
                     }
                 });
+    }
 
+    public Mono<QueueConfig> getQueueConfig(String version) {
+        if (configVersionContextHolder.isCurrentVersion(version)) {
+            return Mono.error(CoreException.of(ErrorType.NOT_MODIFIED));
+        }
+        return cachedActionService.getAllActions()
+                .map(actions -> QueueConfig.builder()
+                        .actions(actions)
+                        .version(configVersionContextHolder.get())
+                        .systemStatus(SystemStatus.RUNNING) // TODO SystemStatus.ON 시스템 상태 반환기능 없음. 구현필요
+                        .build()
+                );
     }
 }

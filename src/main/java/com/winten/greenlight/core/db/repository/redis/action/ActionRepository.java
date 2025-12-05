@@ -64,9 +64,9 @@ public class ActionRepository {
         }
     }
 
-    public Mono<String> getUserApiKey() {
-        return stringRedisTemplate.opsForValue().get(keyBuilder.userApiKey());
-
+    public Mono<String> getCurrentActionVersion() {
+        String key = keyBuilder.actionVersion();
+        return stringRedisTemplate.opsForValue().get(key);
     }
 
     public Flux<Action> getAllActions() {

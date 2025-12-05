@@ -44,7 +44,14 @@ public class ApiControllerAdvice {
                                 log.debug(response.toString());
                         }
                     })
-                    .map(response -> ResponseEntity.status(ex.getErrorType().getStatus()).body(response));
+                    .map(response -> {
+                        var status = ex.getErrorType().getStatus();
+                        var entityBuilder = ResponseEntity.status(status);
+                        if (status == HttpStatus.NOT_MODIFIED) { // 304인경우 body를 제외하고 전달
+                            return entityBuilder.build();
+                        }
+                        return entityBuilder.body(response); // 이외의 경우 body를 담아서 전달
+                    });
     }
 
     @ExceptionHandler(RedisCommandTimeoutException.class)

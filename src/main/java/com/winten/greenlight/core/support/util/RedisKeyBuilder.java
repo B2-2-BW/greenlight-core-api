@@ -66,4 +66,8 @@ public class RedisKeyBuilder {
     public String customerSession(String customerId) {
         return prefix + ":customer:session:" + customerId;
     }
+
+    public String actionVersion() {
+        return prefix + ":api:action:version";
+    }
 }

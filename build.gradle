@@ -31,10 +31,12 @@ dependencies {
     implementation 'ch.qos.logback:logback-core:1.5.19'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'com.github.loki4j:loki-logback-appender:1.6.0'
     implementation 'org.mapstruct:mapstruct:1.6.3'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.2'
+
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'

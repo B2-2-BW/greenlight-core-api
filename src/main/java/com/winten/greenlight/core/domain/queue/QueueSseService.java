@@ -1,6 +1,7 @@
 package com.winten.greenlight.core.domain.queue;
 
 import com.winten.greenlight.core.domain.action.ActionService;
+import com.winten.greenlight.core.domain.action.CachedActionService;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorType;
@@ -27,6 +28,7 @@ public class QueueSseService {
     //사용자별로 상태를 push할 수 있는 sink 저장소
     // key: actionGroupId:customerId ( 마음대로 정할 수 있지만, 보통 해당 형식으로 설정 )
     private final Map<String, Sinks.Many<CustomerQueueInfo>> userSinkMap = new ConcurrentHashMap<>();
+    private final CachedActionService cachedActionService;
 
     // 참고자료: Flux.interval 사용 시 모든 사용자 요청에 interval 이 생성됨
     // 사용자 요청은 연결만 진행하고 일정 주기로 전체 사용자에게 일괄로 상태를 전송하는 방식으로 구현 필요
@@ -95,7 +97,7 @@ public class QueueSseService {
                         redisTemplate.opsForZSet().size(waitingKey)
                 )
                 // rank 및 size가 Waiting Queue에 있다면 대기중
-                .flatMap(tuple -> actionService.getActionGroupById(actionGroupId)
+                .flatMap(tuple -> cachedActionService.getActionGroupById(actionGroupId)
                                     .map(actionGroup -> {
                                         Long estimatedWaitTime = actionGroup.getMaxTrafficPerSecond() > 0  //  = 대기 position / 최대활성사용자수, 나누기 0 방어로직 추가
                                                 ? Math.round((double) tuple.getT1() / actionGroup.getMaxTrafficPerSecond())
