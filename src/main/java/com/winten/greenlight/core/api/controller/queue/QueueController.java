@@ -70,8 +70,7 @@ public class QueueController {
             @RequestHeader(name = GREENLIGHT_ID_HEADER) String greenlightId
     ) {
         return queueService.verifyTicket(greenlightId)
-                    .map(ResponseEntity::ok)
-                    .doOnNext(ticket -> log.error("[temp log]" + ticket.toString()));
+                    .map(ResponseEntity::ok);
     }
 
     /**
