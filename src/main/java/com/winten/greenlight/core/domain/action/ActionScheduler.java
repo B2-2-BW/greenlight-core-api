@@ -22,7 +22,7 @@ public class ActionScheduler {
 
     @PostConstruct
     void init() {
-        this.subscription = Flux.interval(Duration.ofSeconds(10))
+        this.subscription = Flux.interval(Duration.ofSeconds(30))
                 .flatMap(tick -> syncActionConfig()
                                     .doOnError(e -> log.error("[ActionScheduler] syncActionConfig error", e))
                                     .onErrorResume(e -> Mono.empty())
