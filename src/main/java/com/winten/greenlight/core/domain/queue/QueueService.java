@@ -100,7 +100,7 @@ public class QueueService {
                             .build();
 
                     return addUserToQueue(action.getActionGroupId(), customerId, status)
-                            .then(customerRepository.saveCustomerSession(session, Duration.ofDays(1)))
+                            .then(customerRepository.saveCustomerSession(session, Duration.ofMinutes(5)))
                             .then(actionEventPublisher.publish(status, action.getActionGroupId(), action.getId(), customerId, now)) // influxDB에 현재 이벤트 기록 (대기, 입장준비 등)
                             .then(actionRepository.putRequestLog(actionGroup.getId(), customerId)) // 활성사용자수 계산을 위한 접속기록 로깅
                             .then(actionRepository.putSession(customerKey)) // 5분 동시접속자 수 계산을 위한 로깅
