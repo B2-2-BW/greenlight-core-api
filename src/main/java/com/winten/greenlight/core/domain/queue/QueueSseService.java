@@ -97,7 +97,7 @@ public class QueueSseService {
                         redisTemplate.opsForZSet().size(waitingKey)
                 )
                 // rank 및 size가 Waiting Queue에 있다면 대기중
-                .flatMap(tuple -> cachedActionService.getActionGroupById(actionGroupId)
+                .flatMap(tuple -> actionService.getActionGroupById(actionGroupId)
                                     .map(actionGroup -> {
                                         Long estimatedWaitTime = actionGroup.getMaxTrafficPerSecond() > 0  //  = 대기 position / 최대활성사용자수, 나누기 0 방어로직 추가
                                                 ? Math.round((double) tuple.getT1() / actionGroup.getMaxTrafficPerSecond())
