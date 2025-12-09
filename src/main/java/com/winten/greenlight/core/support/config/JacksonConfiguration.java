@@ -8,6 +8,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.LocalDateTime;
 import java.util.TimeZone;
 
 @Configuration
@@ -18,6 +19,7 @@ public class JacksonConfiguration {
 
         // 1) ISO-8601 문자열로 날짜를 다루기 위한 모듈 등록
         JavaTimeModule timeModule = new JavaTimeModule();
+        timeModule.addDeserializer(LocalDateTime.class, new UtcToKstLocalDateTimeDeserializer());
         objectMapper.registerModule(timeModule);
 
         // 2) 타임스탬프 대신 문자열(예: 2024-06-12T15:00:00+09:00) 형태로 저장

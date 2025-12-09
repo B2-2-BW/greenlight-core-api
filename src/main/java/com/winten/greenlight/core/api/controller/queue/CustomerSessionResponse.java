@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class CustomerSessionResponse {
     private Long actionId;
@@ -13,4 +15,8 @@ public class CustomerSessionResponse {
     private String destinationUrl;
     private Long timestamp;
     private WaitStatus waitStatus;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private LocalDateTime landingStartAt;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private LocalDateTime landingEndAt;
 }
