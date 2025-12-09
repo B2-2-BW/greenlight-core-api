@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 
 /**
  * 대기열 시스템의 핵심 애플리케이션 서비스입니다.
@@ -48,27 +49,42 @@ public class QueueService {
      */
     public Mono<CustomerSession> checkLanding(String landingId, String destinationUrl, String greenlightId) {
         return cachedActionService.getActionByLandingId(landingId)
-                .flatMap(action -> checkOrEnterQueue(action.getId(), destinationUrl != null ? destinationUrl : action.getLandingDestinationUrl(), greenlightId))
+                .flatMap(cachedAction -> checkOrEnterQueue(cachedAction, destinationUrl, greenlightId))
                 .switchIfEmpty(Mono.error(CoreException.of(ErrorType.ACTION_NOT_FOUND, "LandingId에 해당하는 Action을 찾을 수 없습니다. " + landingId)));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Long actionId, String destinationUrl, String oldCustomerId) {
         return cachedActionService.getActionById(actionId)
-            .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
-            .flatMap(cachedAction -> {
-                // 2. 액션이 비활성화된 경우, DISABLED 처리
-                return cachedActionService.getActionGroupById(cachedAction.getActionGroupId())
-                    .flatMap(cachedActionGroup -> {
-                        if (!cachedActionGroup.getEnabled()) {
-                            return Mono.just(CustomerSession.bypassed());
-                        }
+                .flatMap(cachedAction -> checkOrEnterQueue(cachedAction, destinationUrl, oldCustomerId))
+                .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)));
+    }
 
-                        String customerKey = null;
-                        try { // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
-                            customerKey = oldCustomerId.split(":")[1];
-                        } catch (Exception ignored) {}
-                        return handleNewEntry(cachedActionGroup.getId(), cachedAction.getId(), destinationUrl, customerKey);
-                    });
+    public Mono<CustomerSession> checkOrEnterQueue(Action cachedAction, final String destinationUrl, final String oldCustomerId) {
+        return cachedActionService.getActionGroupById(cachedAction.getActionGroupId())
+            .flatMap(cachedActionGroup -> {
+                if (!cachedActionGroup.getEnabled()) {
+                    return Mono.just(CustomerSession.bypassed());
+                }
+
+                if (cachedAction.getActionType() == ActionType.LANDING &&
+                        !isBetweenNow(cachedAction.getLandingStartAt(), cachedAction.getLandingEndAt())) {
+                    var disabledSession = CustomerSession.builder()
+                            .timestamp(System.currentTimeMillis())
+                            .waitStatus(WaitStatus.DISABLED)
+                            .landingStartAt(cachedAction.getLandingStartAt())
+                            .landingEndAt(cachedAction.getLandingEndAt())
+                            .build();
+                    return Mono.just(disabledSession);
+                }
+
+                String customerKey = null;
+                try { // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
+                    customerKey = oldCustomerId.split(":")[1];
+                } catch (Exception ignored) {}
+
+                String redirectTo = destinationUrl != null ? destinationUrl : cachedAction.getLandingDestinationUrl();
+
+                return handleNewEntry(cachedActionGroup.getId(), cachedAction.getId(), redirectTo, customerKey);
             });
     }
 
@@ -111,6 +127,15 @@ public class QueueService {
 
     private String generateCustomerKey() {
         return TSID.fast().toString();
+    }
+
+    private boolean isBetweenNow(LocalDateTime from, LocalDateTime to) {
+        // null 이 하나라도 있으면 false
+        if (from == null || to == null) {
+            return false;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        return (now.isAfter(from) || now.isEqual(from)) && (now.isBefore(to) || now.isEqual(to));
     }
     /**
      * actionId를 기반으로 고유한 customerId를 생성합니다.

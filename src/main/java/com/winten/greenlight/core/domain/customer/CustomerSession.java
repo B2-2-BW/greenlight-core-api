@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -19,6 +21,8 @@ public class CustomerSession {
     private Long accessCount;
     private String destinationUrl;
     private Long waitTimeMs;
+    private LocalDateTime landingStartAt;
+    private LocalDateTime landingEndAt;
 
     public static CustomerSession bypassed() {
         return CustomerSession.builder()
