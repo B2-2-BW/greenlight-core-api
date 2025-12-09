@@ -128,10 +128,9 @@ public class QueueService {
      * 활성 사용자 수 및 대기고객수가 ActionGroup의 최대 허용 고객 수를 초과하는지 확인합니다.
      * 활성 사용자 수 계산 시 3초 평균 사용자수를 측정합니다.
      *
-     * @param actionGroup 검사할 ActionGroup
      * @return Mono<Boolean> 대기 필요 여부
      */
-    private Mono<Boolean> isWaitingRequired(Long actionGroupId, Long maxTrafficPerSecond) {
+    private Mono<Boolean> isWaitingRequired(Long actionGroupId, Integer maxTrafficPerSecond) {
         // T1 = 대기고객 수, T2 = 활성사용자 수
         // 대기고객이 있는 경우 무조건 웨이팅
         // 대기고객이 없는 경우 활성사용자수가 최대 활성사용자수보다 적으면 입장 가능
