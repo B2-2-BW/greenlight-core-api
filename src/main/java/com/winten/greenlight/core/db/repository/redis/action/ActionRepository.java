@@ -103,4 +103,10 @@ public class ActionRepository {
         var key = keyBuilder.actionGroupSession();
         return stringRedisTemplate.opsForZSet().add(key, uniqueId, System.currentTimeMillis());
     }
+
+    public Mono<Long> getMaxTrafficPerSecond(Long actionGroupId) {
+        var key = keyBuilder.actionGroupMeta(actionGroupId);
+        return jsonRedisTemplate.opsForHash().get(key, "maxTrafficPerSecond")
+                .map(s -> Long.parseLong((String) s));
+    }
 }
