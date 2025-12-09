@@ -36,6 +36,7 @@ public class QueueService {
     private final ActionEventPublisher actionEventPublisher;
     private final CustomerRepository customerRepository;
     private final CachedActionService cachedActionService;
+    private final ActionService actionService;
 
     /**
      * 사용자의 대기열 상태를 확인하고, 현재 상태에 따라 적절한 응답을 반환합니다.
@@ -54,11 +55,11 @@ public class QueueService {
     public Mono<CustomerSession> checkOrEnterQueue(Long actionId, String destinationUrl, String oldCustomerId) {
         return cachedActionService.getActionById(actionId)
             .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)))
-            .flatMap(action -> {
+            .flatMap(cachedAction -> {
                 // 2. 액션이 비활성화된 경우, DISABLED 처리
-                return cachedActionService.getActionGroupById(action.getActionGroupId())
-                    .flatMap(actionGroup -> {
-                        if (!actionGroup.getEnabled()) {
+                return cachedActionService.getActionGroupById(cachedAction.getActionGroupId())
+                    .flatMap(cachedActionGroup -> {
+                        if (!cachedActionGroup.getEnabled()) {
                             return Mono.just(CustomerSession.bypassed());
                         }
 
@@ -66,7 +67,7 @@ public class QueueService {
                         try { // 기존에 사용하던 토큰이 있는 경우 customerId의 고유번호 추출
                             customerKey = oldCustomerId.split(":")[1];
                         } catch (Exception ignored) {}
-                        return handleNewEntry(actionGroup, action, destinationUrl, customerKey);
+                        return handleNewEntry(cachedActionGroup.getId(), cachedAction.getId(), destinationUrl, customerKey);
                     });
             });
     }
@@ -75,22 +76,21 @@ public class QueueService {
      * 토큰이 없거나 유효하지 않은 경우, 혹은 다른 actionId의 토큰인 경우 신규 진입자를 처리합니다.
      * customerId를 생성하고 대기열 필요 여부에 따라 WAITING 또는 READY 큐에 추가합니다.
      *
-     * @param destinationUrl 목적지 URL
-     * @param action Action 객체
-     * @return Mono<EntryTicket> 대기 상태 및 토큰 정보
+     * @return Mono<CustomerSession> 대기 상태 및 토큰 정보
      */
-    private Mono<CustomerSession> handleNewEntry(ActionGroup actionGroup, Action action, String destinationUrl, String oldCustomerKey) {
+    private Mono<CustomerSession> handleNewEntry(Long actionGroupId, Long actionId, String destinationUrl, String oldCustomerKey) {
         String customerKey = oldCustomerKey != null ? oldCustomerKey : generateCustomerKey();
-        String customerId = makeCustomerId(action.getId(), customerKey);
-        return isWaitingRequired(actionGroup) // 현재 대기가 필요한 상황인지 확인
+        String customerId = makeCustomerId(actionId, customerKey);
+        return actionRepository.getMaxTrafficPerSecond(actionGroupId)
+                .flatMap(maxTrafficPerSecond -> isWaitingRequired(actionGroupId, maxTrafficPerSecond)) // 현재 대기가 필요한 상황인지 확인
                 .flatMap(isWaitingRequired -> {
                     // 대기가 필요한 경우 status = WAITING
                     // 대기없이 바로 입장이 가능한 경우 status = READY
                     WaitStatus status = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.READY;
                     var now = System.currentTimeMillis();
                     var session = CustomerSession.builder()
-                            .actionId(action.getId())
-                            .actionGroupId(actionGroup.getId())
+                            .actionId(actionId)
+                            .actionGroupId(actionGroupId)
                             .customerId(customerId)
                             .verified(false)
                             .accessCount(0L)
@@ -99,10 +99,10 @@ public class QueueService {
                             .waitStatus(status)
                             .build();
 
-                    return addUserToQueue(action.getActionGroupId(), customerId, status)
+                    return addUserToQueue(actionGroupId, customerId, status)
                             .then(customerRepository.saveCustomerSession(session, Duration.ofMinutes(5)))
-                            .then(actionEventPublisher.publish(status, action.getActionGroupId(), action.getId(), customerId, now)) // influxDB에 현재 이벤트 기록 (대기, 입장준비 등)
-                            .then(actionRepository.putRequestLog(actionGroup.getId(), customerId)) // 활성사용자수 계산을 위한 접속기록 로깅
+                            .then(actionEventPublisher.publish(status, actionGroupId, actionId, customerId, now)) // influxDB에 현재 이벤트 기록 (대기, 입장준비 등)
+                            .then(actionRepository.putRequestLog(actionGroupId, customerId)) // 활성사용자수 계산을 위한 접속기록 로깅
                             .then(actionRepository.putSession(customerKey)) // 5분 동시접속자 수 계산을 위한 로깅
                             .thenReturn(session);
 
@@ -131,13 +131,13 @@ public class QueueService {
      * @param actionGroup 검사할 ActionGroup
      * @return Mono<Boolean> 대기 필요 여부
      */
-    private Mono<Boolean> isWaitingRequired(ActionGroup actionGroup) {
+    private Mono<Boolean> isWaitingRequired(Long actionGroupId, Long maxTrafficPerSecond) {
         // T1 = 대기고객 수, T2 = 활성사용자 수
         // 대기고객이 있는 경우 무조건 웨이팅
         // 대기고객이 없는 경우 활성사용자수가 최대 활성사용자수보다 적으면 입장 가능
-        return Mono.zip(actionRepository.getWaitingCountByActionGroupId(actionGroup.getId()),
-                        queueRepository.getCurrentRequestPerSec(actionGroup.getId()))
-                .map(tuple -> tuple.getT1() > 0 || (tuple.getT2()) >= (double) actionGroup.getMaxTrafficPerSecond());
+        return Mono.zip(actionRepository.getWaitingCountByActionGroupId(actionGroupId),
+                        queueRepository.getCurrentRequestPerSec(actionGroupId))
+                .map(tuple -> tuple.getT1() > 0 || (tuple.getT2()) >= (double) maxTrafficPerSecond);
     }
 
     /**
