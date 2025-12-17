@@ -33,10 +33,8 @@ public class QueueService {
     private final RedisKeyBuilder redisKeyBuilder;
     private final QueueRepository queueRepository;
     private final ActionRepository actionRepository;
-    private final ConfigVersionContextHolder configVersionContextHolder;
     private final ActionEventPublisher actionEventPublisher;
     private final CustomerRepository customerRepository;
-    private final CachedActionService cachedActionService;
     private final ActionService actionService;
 
     /**
@@ -48,31 +46,33 @@ public class QueueService {
      * @return Mono<CustomerSession> 대기 상태 및 토큰 정보
      */
     public Mono<CustomerSession> checkLanding(String landingId, String destinationUrl, String greenlightId) {
-        return cachedActionService.getActionByLandingId(landingId)
-                .flatMap(cachedAction -> checkOrEnterQueue(cachedAction, destinationUrl, greenlightId))
+        return actionService.getActionByLandingId(landingId)
+                .flatMap(action -> checkOrEnterQueue(action, destinationUrl, greenlightId))
                 .switchIfEmpty(Mono.error(CoreException.of(ErrorType.ACTION_NOT_FOUND, "LandingId에 해당하는 Action을 찾을 수 없습니다. " + landingId)));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Long actionId, String destinationUrl, String oldCustomerId) {
-        return cachedActionService.getActionById(actionId)
-                .flatMap(cachedAction -> checkOrEnterQueue(cachedAction, destinationUrl, oldCustomerId))
+        return actionService.getActionById(actionId)
+                .flatMap(action -> checkOrEnterQueue(action, destinationUrl, oldCustomerId))
                 .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)));
     }
 
-    public Mono<CustomerSession> checkOrEnterQueue(Action cachedAction, final String destinationUrl, final String oldCustomerId) {
-        return cachedActionService.getActionGroupById(cachedAction.getActionGroupId())
-            .flatMap(cachedActionGroup -> {
-                if (!cachedActionGroup.getEnabled()) {
+    public Mono<CustomerSession> checkOrEnterQueue(Action action, final String destinationUrl, final String oldCustomerId) {
+        return actionService.getActionGroupById(action.getActionGroupId())
+            .flatMap(actionGroup -> {
+                if (!actionGroup.getEnabled()) {
                     return Mono.just(CustomerSession.bypassed());
                 }
 
-                if (cachedAction.getActionType() == ActionType.LANDING &&
-                        !isBetweenNow(cachedAction.getLandingStartAt(), cachedAction.getLandingEndAt())) {
+                if (action.getActionType() == ActionType.LANDING &&
+                        !isBetweenNow(action.getLandingStartAt(), action.getLandingEndAt())) {
                     var disabledSession = CustomerSession.builder()
+                            .actionId(action.getId())
+                            .actionGroupId(action.getActionGroupId())
                             .timestamp(System.currentTimeMillis())
                             .waitStatus(WaitStatus.DISABLED)
-                            .landingStartAt(cachedAction.getLandingStartAt())
-                            .landingEndAt(cachedAction.getLandingEndAt())
+                            .landingStartAt(action.getLandingStartAt())
+                            .landingEndAt(action.getLandingEndAt())
                             .build();
                     return Mono.just(disabledSession);
                 }
@@ -82,9 +82,9 @@ public class QueueService {
                     customerKey = oldCustomerId.split(":")[1];
                 } catch (Exception ignored) {}
 
-                String redirectTo = destinationUrl != null ? destinationUrl : cachedAction.getLandingDestinationUrl();
+                String redirectTo = destinationUrl != null ? destinationUrl : action.getLandingDestinationUrl();
 
-                return handleNewEntry(cachedActionGroup.getId(), cachedAction.getId(), redirectTo, customerKey);
+                return handleNewEntry(actionGroup.getId(), action.getId(), redirectTo, customerKey);
             });
     }
 
@@ -225,18 +225,5 @@ public class QueueService {
                         return Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
                     }
                 });
-    }
-
-    public Mono<QueueConfig> getQueueConfig(String version) {
-        if (configVersionContextHolder.isCurrentVersion(version)) {
-            return Mono.error(CoreException.of(ErrorType.NOT_MODIFIED));
-        }
-        return cachedActionService.getAllActions()
-                .map(actions -> QueueConfig.builder()
-                        .actions(actions)
-                        .version(configVersionContextHolder.get())
-                        .systemStatus(SystemStatus.RUNNING) // TODO SystemStatus.ON 시스템 상태 반환기능 없음. 구현필요
-                        .build()
-                );
     }
 }

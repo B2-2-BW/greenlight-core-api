@@ -10,7 +10,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @Builder
-public class QueueConfig {
+public class ActionConfig {
     private SystemStatus systemStatus;
     private String version;
     private List<Action> actions;

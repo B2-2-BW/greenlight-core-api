@@ -14,7 +14,7 @@ import java.util.List;
 @EnableCaching
 @Configuration
 public class LocalCacheConfig {
-    @Bean
+//    @Bean
     public CaffeineCacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setAsyncCacheMode(true);
