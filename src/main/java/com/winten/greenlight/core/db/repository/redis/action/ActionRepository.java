@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -69,12 +70,13 @@ public class ActionRepository {
         return stringRedisTemplate.opsForValue().get(key);
     }
 
-    public Flux<Action> getAllActions() {
+    public Mono<List<Action>> getAllActions() {
         return stringRedisTemplate.keys(keyBuilder.allActions())
                 .flatMap(key -> jsonRedisTemplate.opsForHash().entries(key)
                         .collectMap(entry -> (String) entry.getKey(), Map.Entry::getValue)
                 )
-                .map(map -> objectMapper.convertValue(map, Action.class));
+                .map(map -> objectMapper.convertValue(map, Action.class))
+                .collectList();
     }
 
     public Mono<String> getActionIdByLandingId(String landingId) {
