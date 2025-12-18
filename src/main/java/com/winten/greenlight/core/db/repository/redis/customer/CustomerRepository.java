@@ -25,11 +25,10 @@ public class CustomerRepository {
     private final RedisKeyBuilder keyBuilder;
     private final ObjectMapper objectMapper;
 
-    public Mono<CustomerSession> enqueueCustomer(CustomerSession customerSession, WaitStatus waitStatus) {
+    public Mono<Boolean> enqueueCustomer(CustomerSession customerSession, WaitStatus waitStatus) {
         String key = keyBuilder.queue(customerSession.getActionGroupId(), waitStatus);
         return stringRedisTemplate.opsForZSet()
-                .add(key, customerSession.getCustomerId(), customerSession.getTimestamp())
-                .flatMap(result -> Mono.just(customerSession));
+                .add(key, customerSession.getCustomerId(), customerSession.getTimestamp());
     }
 
     /**

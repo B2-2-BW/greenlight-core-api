@@ -209,11 +209,12 @@ public class QueueService {
                                     }))
                                     .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId()))
                                     .then(actionRepository.putSession(customer.uniqueId()))
-                                    .then(customerRepository.deleteCustomer(customer.getActionGroupId(), customer.getCustomerId(), WaitStatus.READY)
-                                               .map(deleted -> deleted ?
-                                                       TicketVerificationResponse.success(customer) :
-                                                       TicketVerificationResponse.fail(customerId, "Ready 상태를 찾을 수 없습니다.")
-                                               )
+                                    .then(customerRepository.deleteCustomer(customer.getActionGroupId(), customer.getCustomerId(), WaitStatus.READY))
+                                    .then(customerRepository.enqueueCustomer(customer, WaitStatus.ENTERED)
+                                           .map(deleted -> deleted ?
+                                                   TicketVerificationResponse.success(customer) :
+                                                   TicketVerificationResponse.fail(customerId, "Ready 상태를 찾을 수 없습니다.")
+                                           )
                                     );
                         })
                 )
