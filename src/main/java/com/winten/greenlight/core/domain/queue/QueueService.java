@@ -10,6 +10,7 @@ import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorType;
 import com.winten.greenlight.core.support.publisher.ActionEventPublisher;
+import com.winten.greenlight.core.support.util.CustomerUtil;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +59,9 @@ public class QueueService {
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Action action, final String destinationUrl, final String oldCustomerId) {
+        if (!action.isEnabled()) {
+            return Mono.just(CustomerSession.bypassed());
+        }
         return actionService.getActionGroupById(action.getActionGroupId())
             .flatMap(actionGroup -> {
                 if (!actionGroup.getEnabled()) {
@@ -182,42 +186,56 @@ public class QueueService {
      * Customer ID로 현재 세션을 조회
       */
     public Mono<TicketVerificationResponse> verifyTicket(String customerId) {
-        return customerRepository.getCustomerSessionById(customerId)
-                .map(customerSession -> {
-                    var now = System.currentTimeMillis();
-                    var waitTimeMs = now - customerSession.getTimestamp(); // 고객의 score와 지금 시간차만큼 대기한 것으로 판단
-                    customerSession.setTimestamp(now);
-                    customerSession.setWaitTimeMs(waitTimeMs);
-                    return customerSession;
+        return actionService.getActionById(CustomerUtil.parseActionIdFromCustomerId(customerId))
+                .flatMap(action -> {
+                    if (!action.isEnabled()) { // action이 비활성화 되어있는 경우 bypass 처리
+                        // action을 비활성화헀으나 모종의 이유로 action이 대상 서버에 남아있는 경우, bypass 처리를 하게 되는데
+                        // 이 때 customerId가 null인 경우 지속해서 redirect가 되므로, 기존 customerId를 임시로 쿠키에 저장되도록 유도
+                        // 대기열이 비활성화된 동안 이 값은 무시됨
+                        var tempId = customerId != null ? customerId : makeCustomerId(action.getId(), "temp");
+                        return Mono.just(TicketVerificationResponse.success(CustomerSession.builder()
+                                .actionId(action.getId())
+                                .actionGroupId(action.getActionGroupId())
+                                .customerId(tempId)
+                                .build()));
+                    }
+                    return customerRepository.getCustomerSessionById(customerId)
+                            .map(customerSession -> {
+                                var now = System.currentTimeMillis();
+                                var waitTimeMs = now - customerSession.getTimestamp(); // 고객의 score와 지금 시간차만큼 대기한 것으로 판단
+                                customerSession.setTimestamp(now);
+                                customerSession.setWaitTimeMs(waitTimeMs);
+                                return customerSession;
+                            })
+                            .flatMap(customer -> Mono.zip(
+                                    customerRepository.isCustomerReady(customer.getActionGroupId(), customerId).switchIfEmpty(Mono.just(false)), // T1 대기 완료여부 확인
+                                    customerRepository.findCustomerVerifiedFromSession(customerId).switchIfEmpty(Mono.just(false))
+                            )
+                            .flatMap(tuple -> {
+                                if (tuple.getT2()) { // (verified == true) 이미 대기열에 한번 입장했던 고객인 경우 바로 입장 TODO (POC 기간 한시적으로 적용)
+                                    return Mono.just(TicketVerificationResponse.success(customer));
+                                }
+                                if (!tuple.getT1()) { // 예외케이스, 대기가 완료되지 않은 경우
+                                    return Mono.just(TicketVerificationResponse.fail(customerId, "대기 ID가 유효하지 않거나 대기가 완료되지 않았습니다.")); // 유효하지 않은 입장권인 경우 하단 switchIfEmpty에서 처리
+                                }
+                                return customerRepository.updateSessionVerified(customerId, true) // 세션의 대기상태를 ENTERED로 변경
+                                        .then(customerRepository.increaseSessionAccessCount(customerId, 1L)) // Timestamp도 변경, TODO 위에 success가 먼저 타서 +1이 안됨
+                                        .then(Mono.defer(() -> {
+                                            customer.setWaitStatus(WaitStatus.ENTERED);
+                                            return actionEventPublisher.publish(customer);
+                                        }))
+                                        .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId()))
+                                        .then(actionRepository.putSession(customer.uniqueId()))
+                                        .then(customerRepository.deleteCustomer(customer.getActionGroupId(), customer.getCustomerId(), WaitStatus.READY))
+                                        .then(customerRepository.enqueueCustomer(customer, WaitStatus.ENTERED)
+                                                .map(deleted -> deleted ?
+                                                        TicketVerificationResponse.success(customer) :
+                                                        TicketVerificationResponse.fail(customerId, "Ready 상태를 찾을 수 없습니다.")
+                                                )
+                                        );
+                            })
+                        );
                 })
-                .flatMap(customer -> Mono.zip(
-                            customerRepository.isCustomerReady(customer.getActionGroupId(), customerId).switchIfEmpty(Mono.just(false)), // T1 대기 완료여부 확인
-                            customerRepository.findCustomerVerifiedFromSession(customerId).switchIfEmpty(Mono.just(false))
-                        )
-                        .flatMap(tuple -> {
-                            if (tuple.getT2()) { // (verified == true) 이미 대기열에 한번 입장했던 고객인 경우 바로 입장 TODO (POC 기간 한시적으로 적용)
-                                return Mono.just(TicketVerificationResponse.success(customer));
-                            }
-                            if (!tuple.getT1()) { // 예외케이스, 대기가 완료되지 않은 경우
-                                return Mono.just(TicketVerificationResponse.fail(customerId, "대기 ID가 유효하지 않거나 대기가 완료되지 않았습니다.")); // 유효하지 않은 입장권인 경우 하단 switchIfEmpty에서 처리
-                            }
-                            return customerRepository.updateSessionVerified(customerId, true) // 세션의 대기상태를 ENTERED로 변경
-                                    .then(customerRepository.increaseSessionAccessCount(customerId, 1L)) // Timestamp도 변경, TODO 위에 success가 먼저 타서 +1이 안됨
-                                    .then(Mono.defer(() -> {
-                                        customer.setWaitStatus(WaitStatus.ENTERED);
-                                        return actionEventPublisher.publish(customer);
-                                    }))
-                                    .then(actionRepository.putAccessLog(customer.getActionGroupId(), customer.getCustomerId()))
-                                    .then(actionRepository.putSession(customer.uniqueId()))
-                                    .then(customerRepository.deleteCustomer(customer.getActionGroupId(), customer.getCustomerId(), WaitStatus.READY))
-                                    .then(customerRepository.enqueueCustomer(customer, WaitStatus.ENTERED)
-                                           .map(deleted -> deleted ?
-                                                   TicketVerificationResponse.success(customer) :
-                                                   TicketVerificationResponse.fail(customerId, "Ready 상태를 찾을 수 없습니다.")
-                                           )
-                                    );
-                        })
-                )
                 .switchIfEmpty(Mono.just(TicketVerificationResponse.fail(customerId, "확인되지 않은 오류입니다.")))
                 .onErrorResume(e -> {
                     if (e instanceof CoreException) {

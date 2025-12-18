@@ -7,6 +7,5 @@ public class CustomerUtil {
         } catch (Exception e) {
             return null;
         }
-
     }
 }
