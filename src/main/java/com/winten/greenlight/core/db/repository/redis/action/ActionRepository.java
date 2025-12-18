@@ -70,12 +70,22 @@ public class ActionRepository {
         return stringRedisTemplate.opsForValue().get(key);
     }
 
-    public Mono<List<Action>> getAllActions() {
+    private Flux<Action> getAllActionFlux() {
         return stringRedisTemplate.keys(keyBuilder.allActions())
                 .flatMap(key -> jsonRedisTemplate.opsForHash().entries(key)
                         .collectMap(entry -> (String) entry.getKey(), Map.Entry::getValue)
                 )
-                .map(map -> objectMapper.convertValue(map, Action.class))
+                .map(map -> objectMapper.convertValue(map, Action.class));
+    }
+
+    public Mono<List<Action>> getAllActions() {
+        return getAllActionFlux()
+                .collectList();
+    }
+
+    public Mono<List<Action>> getAllEnabledActions() {
+        return getAllActionFlux()
+                .filter(Action::isEnabled)
                 .collectList();
     }
 
