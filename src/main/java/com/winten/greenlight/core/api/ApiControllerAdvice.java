@@ -1,4 +1,4 @@
-package com.winten.greenlight.core.api.controller;
+package com.winten.greenlight.core.api;
 
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorResponse;

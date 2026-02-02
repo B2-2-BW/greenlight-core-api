@@ -28,6 +28,10 @@ public class RedisKeyBuilder {
         return prefix + ":action_group:" + actionGroupId + ":queue:" + waitStatus;
     }
 
+    public String room(Long actionGroupId, WaitStatus waitStatus) {
+        return prefix + ":action_group:" + actionGroupId + ":room:" + waitStatus;
+    }
+
     // 대기열 키 (기존 queue 메서드와 유사하지만, actionId를 직접 받도록)
     // 기존 queue(Long actionGroupId, WaitStatus waitStatus)와는 다름
     public String waitingQueue(Long actionGroupId) {
@@ -65,6 +69,10 @@ public class RedisKeyBuilder {
 
     public String customerSession(String customerId) {
         return prefix + ":customer:session:" + customerId;
+    }
+
+    public String ticket(String customerId) {
+        return prefix + ":ticket:" + customerId;
     }
 
     public String actionVersion() {

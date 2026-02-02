@@ -1,4 +1,4 @@
-package com.winten.greenlight.core.api.controller;
+package com.winten.greenlight.core.api;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

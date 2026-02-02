@@ -1,7 +1,8 @@
-package com.winten.greenlight.core.api.controller.queue;
+package com.winten.greenlight.core.api.controller.v1.queue;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.winten.greenlight.core.domain.customer.CustomerSession;
+import com.winten.greenlight.core.domain.ticket.Ticket;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,6 +25,15 @@ public class TicketVerificationResponse {
                 .actionId(customerSession.getActionId())
                 .actionGroupId(customerSession.getActionGroupId())
                 .customerId(customerSession.getCustomerId())
+                .verified(true)
+                .build();
+    }
+
+    public static TicketVerificationResponse success(Ticket ticket) {
+        return TicketVerificationResponse.builder()
+                .actionId(ticket.getActionId())
+                .actionGroupId(ticket.getActionGroupId())
+                .customerId(ticket.getCustomerId())
                 .verified(true)
                 .build();
     }

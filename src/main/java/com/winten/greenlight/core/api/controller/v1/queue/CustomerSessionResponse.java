@@ -1,4 +1,4 @@
-package com.winten.greenlight.core.api.controller.queue;
+package com.winten.greenlight.core.api.controller.v1.queue;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.winten.greenlight.core.domain.customer.WaitStatus;

@@ -111,6 +111,11 @@ public class ActionRepository {
         return stringRedisTemplate.opsForZSet().size(key);
     }
 
+    public Mono<Long> countCustomersInRoom(Long actionGroupId, WaitStatus waitStatus) {
+        var key = keyBuilder.queue(actionGroupId, waitStatus);
+        return stringRedisTemplate.opsForZSet().size(key);
+    }
+
     public Mono<Boolean> putSession(String uniqueId) {
         var key = keyBuilder.actionGroupSession();
         return stringRedisTemplate.opsForZSet().add(key, uniqueId, System.currentTimeMillis());
@@ -121,4 +126,5 @@ public class ActionRepository {
         return jsonRedisTemplate.opsForHash().get(key, "maxTrafficPerSecond")
                 .map(s -> (Integer) s);
     }
+
 }

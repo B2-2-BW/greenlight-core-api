@@ -2,6 +2,7 @@ package com.winten.greenlight.core.support.publisher;
 
 import com.winten.greenlight.core.domain.customer.CustomerSession;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
+import com.winten.greenlight.core.domain.ticket.Ticket;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,17 @@ public class ActionEventPublisher {
                 customerSession.getCustomerId(),
                 System.currentTimeMillis(),
                 customerSession.getWaitTimeMs()
+        );
+    }
+
+    public Mono<RecordId> publish(Ticket ticket) {
+        return this.publish(
+                ticket.getWaitStatus(),
+                ticket.getActionGroupId(),
+                ticket.getActionId(),
+                ticket.getCustomerId(),
+                System.currentTimeMillis(),
+                ticket.getWaitTimeMs()
         );
     }
 
