@@ -8,7 +8,7 @@ import com.winten.greenlight.core.domain.action.*;
 import com.winten.greenlight.core.domain.customer.CustomerSession;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
-import com.winten.greenlight.core.support.error.ErrorType;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.publisher.ActionEventPublisher;
 import com.winten.greenlight.core.support.util.CustomerUtil;
 import com.winten.greenlight.core.support.util.DateUtil;
@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 
 /**
  * 대기열 시스템의 핵심 애플리케이션 서비스입니다.
@@ -50,13 +49,13 @@ public class QueueService {
     public Mono<CustomerSession> checkLanding(String landingId, String destinationUrl, String greenlightId) {
         return actionService.getActionByLandingId(landingId)
                 .flatMap(action -> checkOrEnterQueue(action, destinationUrl, greenlightId))
-                .switchIfEmpty(Mono.error(CoreException.of(ErrorType.ACTION_NOT_FOUND, "LandingId에 해당하는 Action을 찾을 수 없습니다. " + landingId)));
+                .switchIfEmpty(Mono.error(CoreException.of(ErrorCode.ACTION_NOT_FOUND, "LandingId에 해당하는 Action을 찾을 수 없습니다. " + landingId)));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Long actionId, String destinationUrl, String oldCustomerId) {
         return actionService.getActionById(actionId)
                 .flatMap(action -> checkOrEnterQueue(action, destinationUrl, oldCustomerId))
-                .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)));
+                .switchIfEmpty(Mono.error(new CoreException(ErrorCode.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Action action, final String destinationUrl, final String oldCustomerId) {
@@ -235,7 +234,7 @@ public class QueueService {
                     if (e instanceof CoreException) {
                         return Mono.error(e);
                     } else {
-                        return Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
+                        return Mono.error(CoreException.of(ErrorCode.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
                     }
                 });
     }

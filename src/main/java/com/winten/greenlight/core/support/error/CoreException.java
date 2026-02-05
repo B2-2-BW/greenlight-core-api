@@ -5,28 +5,28 @@ import lombok.Getter;
 @Getter
 public class CoreException extends RuntimeException {
 
-    private final ErrorType errorType;
+    private final ErrorCode errorCode;
 
     private final Object detail; // 상세한 오류 내용
 
-    public CoreException(ErrorType errorType) {
-        super(errorType.getMessage());
-        this.errorType = errorType;
+    public CoreException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
         this.detail = null;
     }
 
-    public CoreException(ErrorType errorType, Object detail) {
-        super(errorType.getMessage());
-        this.errorType = errorType;
+    public CoreException(ErrorCode errorCode, Object detail) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
         this.detail = detail;
     }
 
-    public static CoreException of(ErrorType errorType) {
-        return CoreException.of(errorType, null);
+    public static CoreException of(ErrorCode errorCode) {
+        return CoreException.of(errorCode, null);
     }
 
-    public static CoreException of(ErrorType errorType, Object detail) {
-        return new CoreException(errorType, detail);
+    public static CoreException of(ErrorCode errorCode, Object detail) {
+        return new CoreException(errorCode, detail);
     }
 
 }

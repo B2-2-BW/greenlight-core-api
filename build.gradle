@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.10'
+    id 'org.springframework.boot' version '4.0.2'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -9,7 +9,7 @@ version = '0.0.1-SNAPSHOT'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -26,13 +26,12 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
-    implementation 'io.hypersistence:hypersistence-utils-hibernate-60:3.9.4'
+    implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:3.0.1'
+    implementation 'io.hypersistence:hypersistence-tsid:2.1.4'
     implementation 'com.github.f4b6a3:ulid-creator:5.2.3'
-    implementation 'org.slf4j:slf4j-api:2.0.17'
-    implementation 'ch.qos.logback:logback-core:1.5.25'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'org.springframework.boot:spring-boot-starter-aspectj'
     implementation 'com.github.loki4j:loki-logback-appender:1.6.0'
     implementation 'org.mapstruct:mapstruct:1.6.3'
     implementation 'com.github.ben-manes.caffeine:caffeine:3.2.2'

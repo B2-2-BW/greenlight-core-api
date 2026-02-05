@@ -33,17 +33,6 @@ public class ActionEventPublisher {
         );
     }
 
-    public Mono<RecordId> publish(Ticket ticket) {
-        return this.publish(
-                ticket.getWaitStatus(),
-                ticket.getActionGroupId(),
-                ticket.getActionId(),
-                ticket.getCustomerId(),
-                System.currentTimeMillis(),
-                ticket.getWaitTimeMs()
-        );
-    }
-
     public Mono<RecordId> publish(WaitStatus waitStatus, Long actionGroupId, Long actionId, String customerId, Long timestamp) {
         return this.publish(waitStatus, actionGroupId, actionId, customerId, timestamp, null);
     }

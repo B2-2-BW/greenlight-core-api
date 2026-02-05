@@ -1,8 +1,8 @@
 
 package com.winten.greenlight.core.db.repository.redis.action;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.core.domain.action.ActionRule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +22,8 @@ import reactor.core.publisher.Mono;
 public class ActionRuleRepository {
 
     private final ReactiveStringRedisTemplate redisTemplate;
-    // Spring Boot가 자동으로 ObjectMapper Bean을 주입해 줍니다.
-    private final ObjectMapper objectMapper;
+    // Spring Boot가 자동으로 jsonMapper Bean을 주입해 줍니다.
+    private final JsonMapper jsonMapper;
 
     private static final String ACTION_RULES_KEY_PREFIX = "action-rules:";
 
@@ -60,8 +60,8 @@ public class ActionRuleRepository {
      */
     private Mono<String> serialize(ActionRule rule) {
         try {
-            return Mono.just(objectMapper.writeValueAsString(rule));
-        } catch (JsonProcessingException e) {
+            return Mono.just(jsonMapper.writeValueAsString(rule));
+        } catch (JacksonException e) {
             return Mono.error(new RuntimeException("Failed to serialize ActionRule", e));
         }
     }
@@ -71,8 +71,8 @@ public class ActionRuleRepository {
      */
     private Mono<ActionRule> deserializeToActionRule(String json) {
         try {
-            return Mono.just(objectMapper.readValue(json, ActionRule.class));
-        } catch (JsonProcessingException e) {
+            return Mono.just(jsonMapper.readValue(json, ActionRule.class));
+        } catch (JacksonException e) {
             return Mono.error(new RuntimeException("Failed to deserialize ActionRule from JSON", e));
         }
     }

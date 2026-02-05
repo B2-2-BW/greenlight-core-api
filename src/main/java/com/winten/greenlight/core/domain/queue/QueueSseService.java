@@ -3,7 +3,7 @@ package com.winten.greenlight.core.domain.queue;
 import com.winten.greenlight.core.domain.action.ActionService;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
-import com.winten.greenlight.core.support.error.ErrorType;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -121,7 +121,7 @@ public class QueueSseService {
                                     .build()
                         ))
                 // Waiting 과 Ready Queue에서 전부 찾을 수 없었다면
-                .switchIfEmpty(Mono.error(new CoreException(ErrorType.CUSTOMER_NOT_FOUND, "이미 입장했거나 존재하지 않는 고객 ID입니다: " + customerId)));
+                .switchIfEmpty(Mono.error(new CoreException(ErrorCode.CUSTOMER_NOT_FOUND, "이미 입장했거나 존재하지 않는 고객 ID입니다: " + customerId)));
     }
 
 }
