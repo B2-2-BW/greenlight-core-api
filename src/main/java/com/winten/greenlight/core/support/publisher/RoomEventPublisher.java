@@ -22,9 +22,9 @@ public class RoomEventPublisher {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final RedisKeyBuilder keyBuilder;
 
-    public Mono<RecordId> publish(Ticket ticket) {
+    public Mono<RecordId> publish(Ticket ticket, WaitStatus waitStatus) {
         return this.publish(
-                ticket.getWaitStatus(),
+                waitStatus,
                 ticket.getRoomId(),
                 ticket.getTicketId(),
                 System.currentTimeMillis(),

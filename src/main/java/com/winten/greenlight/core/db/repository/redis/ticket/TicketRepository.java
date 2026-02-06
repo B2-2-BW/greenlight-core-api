@@ -29,8 +29,8 @@ public class TicketRepository {
                 );
     }
 
-    public Mono<Long> findWaitingPosition(String roomId, String ticketId) {
-        String key = keyBuilder.roomQueue(roomId, WaitStatus.WAITING);
+    public Mono<Long> findQueuePosition(String roomId, String ticketId, WaitStatus waitStatus) {
+        String key = keyBuilder.roomQueue(roomId, waitStatus);
         return redisTemplate.opsForZSet().rank(key, ticketId);
     }
 

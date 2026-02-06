@@ -27,7 +27,7 @@ public class TicketController {
      * @return 생성된 티켓 정보 (대기 순번, 토큰 등)
      */
     @PostMapping("")
-    public Mono<Ticket> issueTicket(
+    public Mono<TicketStatus> issueTicket(
             @RequestBody final TicketIssueRequest request,
             @RequestHeader(name = "X-API-KEY", required = false) String apiKey
     ) {
