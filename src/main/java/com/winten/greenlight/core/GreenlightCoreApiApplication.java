@@ -7,7 +7,7 @@ import reactor.core.publisher.Hooks;
 @SpringBootApplication
 public class GreenlightCoreApiApplication {
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         Hooks.enableAutomaticContextPropagation();
         SpringApplication.run(GreenlightCoreApiApplication.class, args);
     }

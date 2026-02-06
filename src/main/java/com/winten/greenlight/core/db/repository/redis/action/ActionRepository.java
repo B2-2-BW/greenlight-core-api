@@ -1,12 +1,12 @@
 package com.winten.greenlight.core.db.repository.redis.action;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.core.domain.action.Action;
 import com.winten.greenlight.core.domain.action.ActionGroup;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
-import com.winten.greenlight.core.support.error.ErrorType;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ public class ActionRepository {
     private final ReactiveRedisTemplate<String, String> stringRedisTemplate;
     private final ReactiveRedisTemplate<String, Object> jsonRedisTemplate;
     private final RedisKeyBuilder keyBuilder;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     private static final String ACTION_KEY_PREFIX = "action:url:";
 
@@ -42,8 +42,8 @@ public class ActionRepository {
         return jsonRedisTemplate.opsForHash().entries(key)
                 .collectMap(entry -> (String) entry.getKey(), Map.Entry::getValue)
                 .flatMap(map -> map.isEmpty()
-                        ? Mono.error(CoreException.of(ErrorType.ACTION_NOT_FOUND, "Action을 찾을 수 없습니다. actionId: " + actionId))
-                        : Mono.just(objectMapper.convertValue(map, Action.class))
+                        ? Mono.error(CoreException.of(ErrorCode.ACTION_NOT_FOUND, "Action을 찾을 수 없습니다. actionId: " + actionId))
+                        : Mono.just(jsonMapper.convertValue(map, Action.class))
                 );
     }
 
@@ -52,15 +52,15 @@ public class ActionRepository {
         return jsonRedisTemplate.opsForHash().entries(key)
                 .collectMap(entry -> (String) entry.getKey(), Map.Entry::getValue)
                 .flatMap(map -> map.isEmpty()
-                        ? Mono.error(CoreException.of(ErrorType.ACTION_GROUP_NOT_FOUND, "Action Group을 찾을 수 없습니다. actionGroupId: " + actionGroupId))
-                        : Mono.just(objectMapper.convertValue(map, ActionGroup.class))
+                        ? Mono.error(CoreException.of(ErrorCode.ACTION_GROUP_NOT_FOUND, "Action Group을 찾을 수 없습니다. actionGroupId: " + actionGroupId))
+                        : Mono.just(jsonMapper.convertValue(map, ActionGroup.class))
                 );
     }
 
     private Mono<Action> deserializeToAction(String json) {
         try {
-            return Mono.just(objectMapper.readValue(json, Action.class));
-        } catch (JsonProcessingException e) {
+            return Mono.just(jsonMapper.readValue(json, Action.class));
+        } catch (JacksonException e) {
             return Mono.error(new RuntimeException("Failed to deserialize Action from JSON", e));
         }
     }
@@ -75,7 +75,7 @@ public class ActionRepository {
                 .flatMap(key -> jsonRedisTemplate.opsForHash().entries(key)
                         .collectMap(entry -> (String) entry.getKey(), Map.Entry::getValue)
                 )
-                .map(map -> objectMapper.convertValue(map, Action.class));
+                .map(map -> jsonMapper.convertValue(map, Action.class));
     }
 
     public Mono<List<Action>> getAllActions() {
@@ -121,4 +121,5 @@ public class ActionRepository {
         return jsonRedisTemplate.opsForHash().get(key, "maxTrafficPerSecond")
                 .map(s -> (Integer) s);
     }
+
 }

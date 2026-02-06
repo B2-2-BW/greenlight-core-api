@@ -4,7 +4,7 @@ import com.winten.greenlight.core.db.repository.redis.action.ActionRepository;
 import com.winten.greenlight.core.domain.queue.ActionConfig;
 import com.winten.greenlight.core.domain.queue.SystemStatus;
 import com.winten.greenlight.core.support.error.CoreException;
-import com.winten.greenlight.core.support.error.ErrorType;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -26,7 +26,7 @@ public class ActionService {
 
     public Mono<Action> getActionById(final Long actionId) {
         return actionRepository.getActionById(actionId)
-                .switchIfEmpty(Mono.error(CoreException.of(ErrorType.ACTION_NOT_FOUND, "Action을 찾을 수 없습니다. actionId: " + actionId)));
+                .switchIfEmpty(Mono.error(CoreException.of(ErrorCode.ACTION_NOT_FOUND, "Action을 찾을 수 없습니다. actionId: " + actionId)));
     }
 
     public Mono<Action> getActionByLandingId(String landingId) {
@@ -36,14 +36,14 @@ public class ActionService {
 
     public Mono<ActionGroup> getActionGroupById(final Long actionGroupId) {
         return actionRepository.getActionGroupById(actionGroupId)
-                .switchIfEmpty(Mono.error(CoreException.of(ErrorType.ACTION_GROUP_NOT_FOUND, "Action Group을 찾을 수 없습니다. actionGroupId: " + actionGroupId)));
+                .switchIfEmpty(Mono.error(CoreException.of(ErrorCode.ACTION_GROUP_NOT_FOUND, "Action Group을 찾을 수 없습니다. actionGroupId: " + actionGroupId)));
     }
 
     public Mono<ActionConfig> getActionConfig(String version) {
         return actionRepository.getCurrentActionVersion()
                 .flatMap(currentVersion -> {
                     if (currentVersion != null && currentVersion.equals(version)) {
-                        return Mono.error(CoreException.of(ErrorType.NOT_MODIFIED));
+                        return Mono.error(CoreException.of(ErrorCode.NOT_MODIFIED));
                     }
                     return getAllEnabledActions()
                             .map(actions -> ActionConfig.builder()

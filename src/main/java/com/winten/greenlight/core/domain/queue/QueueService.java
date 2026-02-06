@@ -1,6 +1,6 @@
 package com.winten.greenlight.core.domain.queue;
 
-import com.winten.greenlight.core.api.controller.queue.TicketVerificationResponse;
+import com.winten.greenlight.core.api.controller.v1.queue.TicketVerificationResponse;
 import com.winten.greenlight.core.db.repository.redis.action.ActionRepository;
 import com.winten.greenlight.core.db.repository.redis.customer.CustomerRepository;
 import com.winten.greenlight.core.db.repository.redis.queue.QueueRepository;
@@ -8,9 +8,10 @@ import com.winten.greenlight.core.domain.action.*;
 import com.winten.greenlight.core.domain.customer.CustomerSession;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
-import com.winten.greenlight.core.support.error.ErrorType;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.publisher.ActionEventPublisher;
 import com.winten.greenlight.core.support.util.CustomerUtil;
+import com.winten.greenlight.core.support.util.DateUtil;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 
 /**
  * 대기열 시스템의 핵심 애플리케이션 서비스입니다.
@@ -49,13 +49,13 @@ public class QueueService {
     public Mono<CustomerSession> checkLanding(String landingId, String destinationUrl, String greenlightId) {
         return actionService.getActionByLandingId(landingId)
                 .flatMap(action -> checkOrEnterQueue(action, destinationUrl, greenlightId))
-                .switchIfEmpty(Mono.error(CoreException.of(ErrorType.ACTION_NOT_FOUND, "LandingId에 해당하는 Action을 찾을 수 없습니다. " + landingId)));
+                .switchIfEmpty(Mono.error(CoreException.of(ErrorCode.ACTION_NOT_FOUND, "LandingId에 해당하는 Action을 찾을 수 없습니다. " + landingId)));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Long actionId, String destinationUrl, String oldCustomerId) {
         return actionService.getActionById(actionId)
                 .flatMap(action -> checkOrEnterQueue(action, destinationUrl, oldCustomerId))
-                .switchIfEmpty(Mono.error(new CoreException(ErrorType.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)));
+                .switchIfEmpty(Mono.error(new CoreException(ErrorCode.ACTION_NOT_FOUND, "Action not found for ID: " + actionId)));
     }
 
     public Mono<CustomerSession> checkOrEnterQueue(Action action, final String destinationUrl, final String oldCustomerId) {
@@ -69,7 +69,7 @@ public class QueueService {
                 }
 
                 if (action.getActionType() == ActionType.LANDING &&
-                        !isBetweenNow(action.getLandingStartAt(), action.getLandingEndAt())) {
+                        !DateUtil.isBetweenNow(action.getLandingStartAt(), action.getLandingEndAt())) {
                     var disabledSession = CustomerSession.builder()
                             .actionId(action.getId())
                             .actionGroupId(action.getActionGroupId())
@@ -133,14 +133,6 @@ public class QueueService {
         return TSID.fast().toString();
     }
 
-    private boolean isBetweenNow(LocalDateTime from, LocalDateTime to) {
-        // null 이 하나라도 있으면 false
-        if (from == null || to == null) {
-            return false;
-        }
-        LocalDateTime now = LocalDateTime.now();
-        return (now.isAfter(from) || now.isEqual(from)) && (now.isBefore(to) || now.isEqual(to));
-    }
     /**
      * actionId를 기반으로 고유한 customerId를 생성합니다.
      * customerId는 {actionId}:{tsid} 형식입니다.
@@ -187,6 +179,7 @@ public class QueueService {
       */
     public Mono<TicketVerificationResponse> verifyTicket(String customerId) {
         return actionService.getActionById(CustomerUtil.parseActionIdFromCustomerId(customerId))
+                .switchIfEmpty(Mono.just(Action.builder().enabled(false).build()))
                 .flatMap(action -> {
                     if (!action.isEnabled()) { // action이 비활성화 되어있는 경우 bypass 처리
                         // action을 비활성화헀으나 모종의 이유로 action이 대상 서버에 남아있는 경우, bypass 처리를 하게 되는데
@@ -241,7 +234,7 @@ public class QueueService {
                     if (e instanceof CoreException) {
                         return Mono.error(e);
                     } else {
-                        return Mono.error(CoreException.of(ErrorType.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
+                        return Mono.error(CoreException.of(ErrorCode.INTERNAL_SERVER_ERROR, "입장에 실패하였습니다 " + e));
                     }
                 });
     }

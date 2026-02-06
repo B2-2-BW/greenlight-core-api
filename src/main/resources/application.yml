@@ -3,8 +3,29 @@ spring.profiles.active: local
 
 server:
   port: 18080
-  error:
-    include-message: always
+  url: ${SERVER_URL:http://localhost:18080}
+
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  data:
+    redis:
+      host: ${REDIS_DEV_HOST:127.0.0.1}
+      port: ${REDIS_DEV_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      cluster:
+        max-redirects: 5
+        nodes: ${REDIS_CLUSTER_NODES:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+      connect-timeout: 3s
+      timeout: 5s
+      lettuce:
+        pool:
+          time-between-eviction-runs: 300000
+  web:
+    error:
+      include-message: always
 
 management:
   server:
@@ -35,63 +56,31 @@ logging:
 #    level: %5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]
 #  include-application-name: false
 
-jwt:
-  secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
-  
-spring:
-  data:
-    redis:
-      cluster:
-        max-redirects: 3
-
 redis:
   key-prefix: ${REDIS_KEY_PREFIX}
+  connection-type: ${REDIS_CONNECTION_TYPE:standalone}
+
+springdoc:
+  swagger-ui:
+    groups-order: DESC
+    operationsSorter: method
+    disable-swagger-default-url: true
+    display-request-duration: true
+    defaultModelsExpandDepth: -1
+  api-docs:
+    path: /api-docs
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  paths-to-match:
+    - /**
 
 ---
 spring.config.activate.on-profile: local
-spring:
-  data:
-    redis:
-      cluster:
-        nodes:
-          - ${REDIS_CLUSTER_MASTER_NODE_1}
-          - ${REDIS_CLUSTER_MASTER_NODE_2}
-          - ${REDIS_CLUSTER_MASTER_NODE_3}
-          - ${REDIS_CLUSTER_WORKER_NODE_1}
-          - ${REDIS_CLUSTER_WORKER_NODE_2}
-          - ${REDIS_CLUSTER_WORKER_NODE_3}
-      password: ${REDIS_PASSWORD}
 
 ---
 spring.config.activate.on-profile: dev
-spring:
-  data:
-    redis:
-      cluster:
-        nodes:
-          - ${REDIS_CLUSTER_MASTER_NODE_1}
-          - ${REDIS_CLUSTER_MASTER_NODE_2}
-          - ${REDIS_CLUSTER_MASTER_NODE_3}
-          - ${REDIS_CLUSTER_WORKER_NODE_1}
-          - ${REDIS_CLUSTER_WORKER_NODE_2}
-          - ${REDIS_CLUSTER_WORKER_NODE_3}
-      password: ${REDIS_PASSWORD}
-
 ---
 spring.config.activate.on-profile: live
-spring:
-  data:
-    redis:
-      cluster:
-        nodes:
-          - ${REDIS_CLUSTER_MASTER_NODE_1}
-          - ${REDIS_CLUSTER_MASTER_NODE_2}
-          - ${REDIS_CLUSTER_MASTER_NODE_3}
-          - ${REDIS_CLUSTER_WORKER_NODE_1}
-          - ${REDIS_CLUSTER_WORKER_NODE_2}
-          - ${REDIS_CLUSTER_WORKER_NODE_3}
-      password: ${REDIS_PASSWORD}
 management:
   endpoints:
     web:

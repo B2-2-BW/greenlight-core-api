@@ -1,6 +1,6 @@
 package com.winten.greenlight.core.db.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -27,9 +27,9 @@ public class RedisTemplateConfig {
     }
 
     @Bean
-    public ReactiveRedisTemplate<String, Object> reactiveJsonRedisTemplate(LettuceConnectionFactory factory, ObjectMapper objectMapper) {
+    public ReactiveRedisTemplate<String, Object> reactiveJsonRedisTemplate(LettuceConnectionFactory factory, JsonMapper jsonMapper) {
         var keySerializer = new StringRedisSerializer();
-        var jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+        var jsonSerializer = new GenericJacksonJsonRedisSerializer(jsonMapper);
 
         var serializationContext = RedisSerializationContext
                 .<String, Object>newSerializationContext()

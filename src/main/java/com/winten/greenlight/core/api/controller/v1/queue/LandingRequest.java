@@ -1,4 +1,4 @@
-package com.winten.greenlight.core.api.controller.queue;
+package com.winten.greenlight.core.api.controller.v1.queue;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class EntryRequest {
-    private Long actionId;
+public class LandingRequest {
+    private String landingId;
     private String destinationUrl;
 }

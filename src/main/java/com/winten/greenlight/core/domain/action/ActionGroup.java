@@ -51,6 +51,8 @@ public class ActionGroup extends AuditDto implements Hashable {
      */
     private Integer maxTrafficPerSecond;
 
+    private Integer roomCapacity;
+
     /**
      * 그룹 전체의 활성화 여부를 나타내는 플래그입니다.
      * {@code false}일 경우, 이 그룹에 속한 모든 Action의 대기열 기능이 비활성화됩니다.

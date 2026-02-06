@@ -1,4 +1,4 @@
-FROM alpine/java:17.0.12
+FROM eclipse-temurin:25.0.1_8-jre-alpine
 
 RUN apk --no-cache add tzdata
 ENV TZ=Asia/Seoul

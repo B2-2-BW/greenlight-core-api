@@ -1,11 +1,11 @@
 package com.winten.greenlight.core.db.repository.redis.customer;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.core.domain.customer.CustomerSession;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.support.error.CoreException;
-import com.winten.greenlight.core.support.error.ErrorType;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +23,7 @@ public class CustomerRepository {
     private final ReactiveRedisTemplate<String, String> stringRedisTemplate;
     private final ReactiveRedisTemplate<String, Object> jsonRedisTemplate;
     private final RedisKeyBuilder keyBuilder;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     public Mono<Boolean> enqueueCustomer(CustomerSession customerSession, WaitStatus waitStatus) {
         String key = keyBuilder.queue(customerSession.getActionGroupId(), waitStatus);
@@ -48,7 +48,7 @@ public class CustomerRepository {
 
     public Mono<Boolean> saveCustomerSession(CustomerSession session, Duration ttl) {
         String key = keyBuilder.customerSession(session.getCustomerId());
-        Map<String, Object> map = objectMapper.convertValue(session, new TypeReference<>() {}); // DTO to Map 변환
+        Map<String, Object> map = jsonMapper.convertValue(session, new TypeReference<>() {}); // DTO to Map 변환
         return jsonRedisTemplate.opsForHash().putAll(key, map)
                 .then(jsonRedisTemplate.expire(key, ttl));
     }
@@ -59,8 +59,8 @@ public class CustomerRepository {
                 .entries(key)
                 .collectMap(entry -> (String) entry.getKey(), Map.Entry::getValue)
                 .flatMap(map -> map.isEmpty()
-                        ? Mono.error(CoreException.of(ErrorType.CUSTOMER_NOT_FOUND, "Customer session을 찾을 수 없습니다. customerId: " + customerId))
-                        : Mono.just(objectMapper.convertValue(map, CustomerSession.class))
+                        ? Mono.error(CoreException.of(ErrorCode.CUSTOMER_NOT_FOUND, "Customer session을 찾을 수 없습니다. customerId: " + customerId))
+                        : Mono.just(jsonMapper.convertValue(map, CustomerSession.class))
                 );
     }
 

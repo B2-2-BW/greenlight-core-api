@@ -1,8 +1,8 @@
-package com.winten.greenlight.core.api.controller;
+package com.winten.greenlight.core.api;
 
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorResponse;
-import com.winten.greenlight.core.support.error.ErrorType;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import io.lettuce.core.RedisCommandTimeoutException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -30,7 +30,7 @@ public class ApiControllerAdvice {
     public Mono<ResponseEntity<ErrorResponse>> handleCoreException(CoreException ex) {
         return Mono.just(new ErrorResponse(ex))
                     .doOnNext(response -> {
-                        switch (ex.getErrorType().getLogLevel()) {
+                        switch (ex.getErrorCode().getLogLevel()) {
                             case INFO:
                                 log.info(response.toString());
                                 break;
@@ -45,7 +45,7 @@ public class ApiControllerAdvice {
                         }
                     })
                     .map(response -> {
-                        var status = ex.getErrorType().getStatus();
+                        var status = ex.getErrorCode().getStatus();
                         var entityBuilder = ResponseEntity.status(status);
                         if (status == HttpStatus.NOT_MODIFIED) { // 304인경우 body를 제외하고 전달
                             return entityBuilder.build();
@@ -57,7 +57,7 @@ public class ApiControllerAdvice {
     @ExceptionHandler(RedisCommandTimeoutException.class)
     public Mono<ResponseEntity<ErrorResponse>> redisCommandTimeoutExceptionHandler(RedisCommandTimeoutException ex) {
         lettuceConnectionFactory.resetConnection();
-        throw CoreException.of(ErrorType.REDIS_ERROR, "redis command timeout 발생. 재연결 시도");
+        throw CoreException.of(ErrorCode.REDIS_ERROR, "redis command timeout 발생. 재연결 시도");
     }
 
     // TODO Map이 아닌 ApiResponse를 리턴하도록 개선하고, 에러메시지 표출방식 통일

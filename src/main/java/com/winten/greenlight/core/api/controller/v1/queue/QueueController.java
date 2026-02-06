@@ -1,9 +1,9 @@
-package com.winten.greenlight.core.api.controller.queue;
+package com.winten.greenlight.core.api.controller.v1.queue;
 
 import com.winten.greenlight.core.domain.customer.CustomerConverter;
 import com.winten.greenlight.core.domain.queue.QueueService;
 import com.winten.greenlight.core.support.error.CoreException;
-import com.winten.greenlight.core.support.error.ErrorType;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -36,7 +36,7 @@ public class QueueController {
             @RequestHeader(name = GREENLIGHT_ID_HEADER, required = false) String greenlightId
     ) {
         if (request.getActionId() == null) {
-            return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "actionId is required."));
+            return Mono.error(new CoreException(ErrorCode.BAD_REQUEST, "actionId is required."));
         }
         return queueService.checkOrEnterQueue(request.getActionId(), request.getDestinationUrl(), greenlightId)
                 .map(customerConverter::toResponse);
@@ -56,7 +56,7 @@ public class QueueController {
             @RequestHeader(name = GREENLIGHT_ID_HEADER, required = false) String greenlightId
     ) {
         if (request.getLandingId() == null) {
-            return Mono.error(new CoreException(ErrorType.BAD_REQUEST, "landingId is required."));
+            return Mono.error(new CoreException(ErrorCode.BAD_REQUEST, "landingId is required."));
         }
         return queueService.checkLanding(request.getLandingId(), request.getDestinationUrl(), greenlightId)
                 .map(customerConverter::toResponse);
