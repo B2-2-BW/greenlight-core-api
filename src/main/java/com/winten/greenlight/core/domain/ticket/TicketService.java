@@ -10,12 +10,9 @@ import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomService;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
-import com.winten.greenlight.core.support.publisher.RoomEventPublisher;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.xml.bind.DatatypeConverter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -24,14 +21,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.Objects;
 
 @Slf4j
 @Service
 public class TicketService {
     private final RedisKeyBuilder redisKeyBuilder;
     private final QueueRepository queueRepository;
-    private final RoomEventPublisher roomEventPublisher;
     private final TicketRepository ticketRepository;
     private final RoomService roomService;
     private final RoomRepository roomRepository;
@@ -41,7 +36,6 @@ public class TicketService {
     public TicketService(
             RedisKeyBuilder redisKeyBuilder,
             QueueRepository queueRepository,
-            RoomEventPublisher roomEventPublisher,
             TicketRepository ticketRepository,
             RoomService roomService,
             RoomRepository roomRepository,
@@ -49,7 +43,6 @@ public class TicketService {
     ) throws NoSuchAlgorithmException {
         this.redisKeyBuilder = redisKeyBuilder;
         this.queueRepository = queueRepository;
-        this.roomEventPublisher = roomEventPublisher;
         this.ticketRepository = ticketRepository;
         this.roomService = roomService;
         this.roomRepository = roomRepository;
@@ -58,6 +51,7 @@ public class TicketService {
     }
 
     public Mono<Ticket> issueWaitingTicket(TicketIssueRequest request, String apiKey) {
+        var score = System.currentTimeMillis();
         return roomService.findRoomById(request.getRoomId())
                 .flatMap(room -> {
                     if (!room.getEnabled()) {
@@ -65,7 +59,7 @@ public class TicketService {
                     }
                     // TODO room apikey 검증하기
                     var ticketId = request.getTicketId() != null ? request.getTicketId() : generateNewTicketId();
-                    return processWaitingTicket(room, ticketId);
+                    return processWaitingTicket(room, ticketId, score);
                 });
     }
 
@@ -74,38 +68,40 @@ public class TicketService {
     }
 
 
-    private Mono<Ticket> processWaitingTicket(Room room, String ticketId) {
+    private Mono<Ticket> processWaitingTicket(Room room, String ticketId, long score) {
 
         Mono<Boolean> waitingRequired = this.isWaitingRequired(room.getRoomId(), room.getCapacity());
 
         return waitingRequired.flatMap(isWaitingRequired -> {
             WaitStatus status = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.ENTERED;
-            long now = System.currentTimeMillis();
 
-            String combined = ticketId + ":" + now;
+            String combined = ticketId + ":" + score;
             byte[] byteHash = messageDigest.digest(combined.getBytes(StandardCharsets.UTF_8));
             String hash = DatatypeConverter.printHexBinary(byteHash).toLowerCase();
+            String roomId = room.getRoomId();
             var ticket = Ticket.builder()
-                    .roomId(room.getRoomId())
+                    .roomId(roomId)
                     .ticketId(ticketId)
                     .hash(hash)
                     .remainingUses(1)
-                    .timestamp(now)
+                    .timestamp(score)
                     .build();
 
-            Mono<Void> saveTicket = this.saveTicket(ticket)
-                    .flatMap(_ -> {
-                        String roomKey = redisKeyBuilder.roomQueue(room.getRoomId(), status);
-                        return roomRepository.add(roomKey, ticketId, System.currentTimeMillis())
-                                .then();
-                    });
+            Mono<Long> saveTicket = this.saveTicket(ticket)
+                    .flatMap(_ -> roomRepository.addToRoomQueue(ticket, status));
 
+            long targetBucket = this.calculateMetricCounterBucket();
+
+            // 바로 입장했을 경우 heartbeat 업데이트
+            Mono<Void> updateHeartbeat = (status == WaitStatus.ENTERED)
+                    ? roomRepository.updateHeartbeatScore(roomId, ticketId, status)
+                    .then(roomRepository.increaseMetricCount(roomId, status, targetBucket))
+                    .then()
+                    : Mono.empty();
             // 비동기 로깅 작업
             Mono.when(
-                    // ENTERED 상태는 verification 단계에서 처리되니 신경 안써도 됨.
-                    roomEventPublisher.publish(ticket, WaitStatus.WAITING) // influxDB에 현재 이벤트 기록 (대기, 입장준비 등)
-//                    actionRepository.putRequestLog(actionGroup.getId(), customerId), // 활성사용자수 계산을 위한 접속기록 로깅
-//                    actionRepository.putSession(CustomerUtil.parseKeyFromCustomerId(customerId)) // 5분 동시접속자 수 계산을 위한 로깅
+                    roomRepository.increaseMetricCount(roomId, WaitStatus.WAITING, targetBucket), // 실시간 유입량 계산을 위한 기록 (SortedSet)
+                    updateHeartbeat
             ).subscribeOn(Schedulers.boundedElastic()) // 별도 스레드에서 실행
             .subscribe(
                     null,
@@ -124,12 +120,12 @@ public class TicketService {
     }
 
     private Mono<Boolean> isWaitingRequired(String roomId, int roomCapacity) {
-        return roomRepository.countCustomersInRoomQueue(roomId, WaitStatus.WAITING)
+        return roomRepository.countWaitingCustomersInRoom(roomId)
                 .flatMap(waiting -> {
                     if (waiting > 0) {
                         return Mono.just(true);
                     }
-                    return roomRepository.countCustomersInRoomQueue(roomId, WaitStatus.ENTERED)
+                    return roomRepository.countEnteredCustomersInRoom(roomId)
                                     .map(enterCount -> (roomCapacity - enterCount) < 1);
                 });
     }
@@ -159,7 +155,6 @@ public class TicketService {
                                     .map(_ -> TicketVerification.success(ticketId, ticket.getRoomId()))
                                     .doOnNext(_ -> {
                                         Mono.when(
-                                                        roomEventPublisher.publish(ticket, WaitStatus.ENTERED) // TODO
                                                         // actionRepository.putAccessLog(ticket.getActionGroupId(), ticket.getCustomerId()),
                                                         // actionRepository.putSession(CustomerUtil.parseKeyFromCustomerId(ticketId))
                                                 ).subscribeOn(Schedulers.boundedElastic()) // 별도 스레드에서 실행
@@ -197,7 +192,7 @@ public class TicketService {
                 .flatMap(rank -> {
                     // [CASE 1] WAITING 상태인 경우 (대기열 정보 계산)
                     if (rank != -1L) {
-                        return roomRepository.countCustomersInRoomQueue(roomId, WaitStatus.WAITING)
+                        return roomRepository.countWaitingCustomersInRoom(roomId)
                                 .map(totalCount -> {
                                     long myPosition = rank + 1; // 0-based -> 1-based
                                     long behindCount = Math.max(totalCount - myPosition, 0);
@@ -232,6 +227,35 @@ public class TicketService {
                 });
 
     }
+
+    public Mono<Boolean> updateHeartbeat(String ticketId, WaitStatus heartbeatType) {
+        return ticketRepository.findTicketById(ticketId)
+                .flatMap(ticket -> roomRepository.updateHeartbeatScore(ticket.getRoomId(), ticketId, heartbeatType))
+                .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
+    }
+
+    private long calculateMetricCounterBucket() {
+        long currentBucketStart = (System.currentTimeMillis() / 3000) * 3000;
+        return currentBucketStart - 3000;
+    }
+
+    public Mono<Void> deleteTicket(String ticketId, WaitStatus heartbeatType) {
+        return ticketRepository.findTicketById(ticketId)
+                .flatMap(ticket -> {
+                    String roomId = ticket.getRoomId();
+                    return roomRepository.deleteHeartbeat(roomId, ticketId, heartbeatType) // Mono<Long/Integer>
+                            .doOnError(e -> log.error("deleteHeartbeat failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
+                            .filter(deletedCount -> deletedCount > 0)
+                            .flatMap(ignored -> {
+                                    long targetBucket = calculateMetricCounterBucket();
+                                    return roomRepository.increaseMetricCount(roomId, WaitStatus.EXITED, targetBucket)
+                                            .doOnError(e -> log.error("increaseMetricCount failed. ticketId: {}, reason: {}", ticketId, e.getMessage()));
+                                }
+                            );
+                })
+                .then();
+    }
+
 
     // TODO 이게 뭐지...?
 //    private boolean verifyHash(String raw, String actual) {

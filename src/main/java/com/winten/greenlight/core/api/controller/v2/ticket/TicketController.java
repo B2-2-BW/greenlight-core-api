@@ -1,9 +1,11 @@
 package com.winten.greenlight.core.api.controller.v2.ticket;
 
+import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.ticket.*;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -35,6 +37,29 @@ public class TicketController {
         // TODO: 발급된 티켓 정보(UUID, 순번, 예상시간 등) 반환
         return ticketService.issueWaitingTicket(request, apiKey)
                 .map(ticketConverter::toResponse);
+    }
+
+    /**
+     * 주기적으로 heartbeat를 호출해서 Ticket Session을 갱신
+     */
+    @PostMapping("{ticketId}/heartbeat")
+    public Mono<?> heartbeatTicket(
+            @PathVariable String ticketId,
+            @RequestParam WaitStatus heartbeatType
+    ) {
+        return ticketService.updateHeartbeat(ticketId, heartbeatType);
+    }
+
+    /**
+     * heartbeat를 삭제 Ticket Session을 갱신
+     */
+    @PostMapping("{ticketId}/leave")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> leaveRoom(
+            @PathVariable String ticketId,
+            @RequestParam WaitStatus heartbeatType
+    ) {
+        return ticketService.deleteTicket(ticketId, heartbeatType);
     }
 
     @GetMapping("{ticketId}/status")
