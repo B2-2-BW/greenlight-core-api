@@ -7,7 +7,14 @@ variable "aws_account_id" { type = string }
 variable "ecr_repo_name" { type = string }
 variable "image_tag" { type = string }
 variable "packer_ec2_role" { type = string }
-
+variable "core_api_ami_name" {
+    type = string
+    default = "greenlight-core-api-live-ami-latest"
+}
+variable "ami_ssm_parameter" {
+    type = string
+    default = "/greenlight/ami/core-api/latest"
+}
 packer {
   required_plugins {
     amazon = {
@@ -19,7 +26,7 @@ packer {
 
 source "amazon-ebs" "al2023_golden" {
   region        = var.aws_region
-  ami_name      = "greenlight-core-api-live-ami-latest"
+  ami_name      = var.core_api_ami_name
   instance_type = "t3.small"
   ssh_username  = "ec2-user"
 
@@ -57,6 +64,14 @@ build {
       
       "sudo docker pull grafana/promtail:3.5",
       "sudo docker pull prom/node-exporter:v1.9.1"
+    ]
+  }
+
+  # 빌드 성공 후 SSM Parameter Update (AWS CLI 활용)
+  provisioner "shell-local" {
+    inline = [
+      "AMI_ID=$(aws ec2 describe-images --filters 'Name=name,Values=${var.core_api_ami_name}' --query 'Images[0].ImageId' --output text --region ${var.aws_region})",
+      "aws ssm put-parameter --name '${var.ami_ssm_parameter}' --value $AMI_ID --type String --overwrite --region ${var.aws_region}"
     ]
   }
 }
