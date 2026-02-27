@@ -20,7 +20,7 @@ public class TicketRepository {
     private final RedisKeyBuilder keyBuilder;
     private final JsonMapper jsonMapper;
 
-    public Mono<Boolean> saveTicket(Ticket ticket, Duration ttl) {
+    public Mono<Boolean> saveTicket(TicketEntity ticket, Duration ttl) {
         String key = keyBuilder.ticket(ticket.getTicketId());
 
         return Mono.fromCallable(() -> jsonMapper.writeValueAsString(ticket))

@@ -12,17 +12,22 @@ import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.publisher.RoomEventPublisher;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
-import lombok.RequiredArgsConstructor;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.xml.bind.DatatypeConverter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.Objects;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TicketService {
     private final RedisKeyBuilder redisKeyBuilder;
     private final QueueRepository queueRepository;
@@ -31,8 +36,28 @@ public class TicketService {
     private final RoomService roomService;
     private final RoomRepository roomRepository;
     private final TicketConverter ticketConverter;
+    private final MessageDigest messageDigest;
 
-    public Mono<TicketStatus> issueWaitingTicket(TicketIssueRequest request, String apiKey) {
+    public TicketService(
+            RedisKeyBuilder redisKeyBuilder,
+            QueueRepository queueRepository,
+            RoomEventPublisher roomEventPublisher,
+            TicketRepository ticketRepository,
+            RoomService roomService,
+            RoomRepository roomRepository,
+            TicketConverter ticketConverter
+    ) throws NoSuchAlgorithmException {
+        this.redisKeyBuilder = redisKeyBuilder;
+        this.queueRepository = queueRepository;
+        this.roomEventPublisher = roomEventPublisher;
+        this.ticketRepository = ticketRepository;
+        this.roomService = roomService;
+        this.roomRepository = roomRepository;
+        this.ticketConverter = ticketConverter;
+        messageDigest = MessageDigest.getInstance("SHA-256");
+    }
+
+    public Mono<Ticket> issueWaitingTicket(TicketIssueRequest request, String apiKey) {
         return roomService.findRoomById(request.getRoomId())
                 .flatMap(room -> {
                     if (!room.getEnabled()) {
@@ -49,17 +74,21 @@ public class TicketService {
     }
 
 
-    private Mono<TicketStatus> processWaitingTicket(Room room, String ticketId) {
+    private Mono<Ticket> processWaitingTicket(Room room, String ticketId) {
 
         Mono<Boolean> waitingRequired = this.isWaitingRequired(room.getRoomId(), room.getCapacity());
 
         return waitingRequired.flatMap(isWaitingRequired -> {
             WaitStatus status = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.ENTERED;
-            var now = System.currentTimeMillis();
+            long now = System.currentTimeMillis();
 
+            String combined = ticketId + ":" + now;
+            byte[] byteHash = messageDigest.digest(combined.getBytes(StandardCharsets.UTF_8));
+            String hash = DatatypeConverter.printHexBinary(byteHash).toLowerCase();
             var ticket = Ticket.builder()
                     .roomId(room.getRoomId())
                     .ticketId(ticketId)
+                    .hash(hash)
                     .remainingUses(1)
                     .timestamp(now)
                     .build();
@@ -83,15 +112,15 @@ public class TicketService {
                     e -> log.error("[Async Log Error] failed for ticket: {}", ticketId, e) // 에러 발생 시 로그 남김
             );
 
-            var ticketStatus = ticketConverter.toStatus(ticket);
-            ticketStatus.setWaitStatus(status);
-            return saveTicket.thenReturn(ticketStatus);
+            ticket.setWaitStatus(status);
+            return saveTicket.thenReturn(ticket);
         });
     }
 
     private Mono<Boolean> saveTicket(Ticket ticket) {
         var ttl = Duration.ofMinutes(999);
-        return ticketRepository.saveTicket(ticket, ttl);
+
+        return ticketRepository.saveTicket(ticketConverter.toEntity(ticket), ttl);
     }
 
     private Mono<Boolean> isWaitingRequired(String roomId, int roomCapacity) {
@@ -105,12 +134,15 @@ public class TicketService {
                 });
     }
 
-    public Mono<TicketVerification> verifyTicket(String ticketId) {
+    public Mono<TicketVerification> verifyTicket(String ticketId, String hash) {
         return ticketRepository.findTicketById(ticketId)
             .defaultIfEmpty(new Ticket())
             .flatMap(ticket -> {
                 if (ticket.getTicketId() == null) { // 예외케이스, 대기가 완료되지 않은 경우
                     return Mono.just(TicketVerification.fail(ticketId, "대기 ID가 유효하지 않습니다.")); // 유효하지 않은 입장권인 경우 하단 switchIfEmpty에서 처리
+                }
+                if (!hash.equals(ticket.getHash())) {
+                    return Mono.just(TicketVerification.fail(ticketId, "TicketId 또는 hash가 유효하지 않습니다."));
                 }
                 return ticketRepository.findQueuePosition(ticket.getRoomId(), ticketId, WaitStatus.WAITING)
                         .defaultIfEmpty(-1L)
@@ -150,13 +182,13 @@ public class TicketService {
             });
     }
 
-    public Mono<TicketStatus> getTicketStatus(String ticketId) {
+    public Mono<TicketStatus> getTicketStatus(String ticketId, String hash) {
         return ticketRepository.findTicketById(ticketId)
-                .flatMap(this::buildTicketStatus)
+                .flatMap(ticket -> this.buildTicketStatus(ticket, hash))
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
     }
 
-    private Mono<TicketStatus> buildTicketStatus(Ticket ticket) {
+    private Mono<TicketStatus> buildTicketStatus(Ticket ticket, String hash) {
         var roomId = ticket.getRoomId();
         var ticketId = ticket.getTicketId();
 
@@ -200,4 +232,11 @@ public class TicketService {
                 });
 
     }
+
+    // TODO 이게 뭐지...?
+//    private boolean verifyHash(String raw, String actual) {
+//        if (Objects.equals(raw, actual)) {
+//            return Mono.just(TicketVerification.fail(ticketId, "TicketId 또는 hash가 유효하지 않습니다."));
+//        }
+//    }
 }

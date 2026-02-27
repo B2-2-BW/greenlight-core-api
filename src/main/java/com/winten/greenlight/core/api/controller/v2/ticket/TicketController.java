@@ -1,9 +1,7 @@
 package com.winten.greenlight.core.api.controller.v2.ticket;
 
-import com.winten.greenlight.core.domain.ticket.Ticket;
-import com.winten.greenlight.core.domain.ticket.TicketService;
-import com.winten.greenlight.core.domain.ticket.TicketStatus;
-import com.winten.greenlight.core.domain.ticket.TicketVerification;
+import com.winten.greenlight.core.domain.ticket.*;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +13,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class TicketController {
     private final TicketService ticketService;
+    private final TicketConverter ticketConverter;
 
     /**
      * 1. 입장 요청 (대기열 진입)
@@ -27,21 +26,23 @@ public class TicketController {
      * @return 생성된 티켓 정보 (대기 순번, 토큰 등)
      */
     @PostMapping("")
-    public Mono<TicketStatus> issueTicket(
+    public Mono<TicketResponse> issueTicket(
             @RequestBody final TicketIssueRequest request,
             @RequestHeader(name = "X-API-KEY", required = false) String apiKey
     ) {
         // TODO: 사용자 인증 정보 확인
         // TODO: 대기열 큐(Redis 등)에 사용자 등록 또는 바로 입장 처리
         // TODO: 발급된 티켓 정보(UUID, 순번, 예상시간 등) 반환
-        return ticketService.issueWaitingTicket(request, apiKey);
+        return ticketService.issueWaitingTicket(request, apiKey)
+                .map(ticketConverter::toResponse);
     }
 
     @GetMapping("{ticketId}/status")
     public Mono<TicketStatus> getTicketStatus(
-            @PathVariable String ticketId
+            @PathVariable String ticketId,
+            @RequestParam String hash
     ) {
-        return ticketService.getTicketStatus(ticketId);
+        return ticketService.getTicketStatus(ticketId, hash);
     }
 
     /**
@@ -56,9 +57,10 @@ public class TicketController {
      */
     @PostMapping("{ticketId}/verification")
     public Mono<TicketVerification> verifyTicket(
-            @PathVariable String ticketId
+            @PathVariable String ticketId,
+            @RequestBody @NotEmpty String hash
     ) {
-        return ticketService.verifyTicket(ticketId);
+        return ticketService.verifyTicket(ticketId, hash);
     }
 
 }
