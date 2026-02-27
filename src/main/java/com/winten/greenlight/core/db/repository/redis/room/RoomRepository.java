@@ -18,6 +18,7 @@ public class RoomRepository {
     private final RedisKeyBuilder keyBuilder;
     private final JsonMapper jsonMapper;
 
+    // TODO room이 없으면 notfound 로 떨구기. 500에러 떨어짐
     public Mono<Room> findRoomById(String roomId) {
         String key = keyBuilder.roomMeta(roomId);
 
