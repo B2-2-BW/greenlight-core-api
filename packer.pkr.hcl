@@ -68,7 +68,7 @@ build {
   }
 
   # 빌드 성공 후 SSM Parameter Update (AWS CLI 활용)
-  provisioner "shell-local" {
+  post-processor "shell-local" {
     inline = [
       "AMI_ID=$(aws ec2 describe-images --filters 'Name=name,Values=${var.core_api_ami_name}' --query 'Images[0].ImageId' --output text --region ${var.aws_region})",
       "aws ssm put-parameter --name '${var.ami_ssm_parameter}' --value $AMI_ID --type String --data-type aws:ec2:image --overwrite --region ${var.aws_region}"
