@@ -16,10 +16,13 @@ packer {
 
 source "amazon-ebs" "al2023_golden" {
   region        = var.aws_region
-  ami_name      = "greenlight-core-api-live-ami-${var.image_tag}"
+  ami_name      = "greenlight-core-api-live-ami-latest"
   instance_type = "t3.small"
   ssh_username  = "ec2-user"
-  
+
+  force_deregister      = true
+  force_delete_snapshot = true
+
   source_ami_filter {
     filters = {
       name                = "al2023-ami-2023.*-x86_64"
