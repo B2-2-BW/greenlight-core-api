@@ -13,7 +13,7 @@ variable "core_api_ami_name" {
 }
 variable "ami_ssm_parameter" {
     type = string
-    default = "/greenlight/ami/core-api/live"
+    default = "greenlight-core-api-live-ami-id"
 }
 packer {
   required_plugins {
@@ -71,7 +71,7 @@ build {
   provisioner "shell-local" {
     inline = [
       "AMI_ID=$(aws ec2 describe-images --filters 'Name=name,Values=${var.core_api_ami_name}' --query 'Images[0].ImageId' --output text --region ${var.aws_region})",
-      "aws ssm put-parameter --name '${var.ami_ssm_parameter}' --value $AMI_ID --type String --overwrite --region ${var.aws_region}"
+      "aws ssm put-parameter --name '${var.ami_ssm_parameter}' --value $AMI_ID --type String --data-type aws:ec2:image --overwrite --region ${var.aws_region}"
     ]
   }
 }
