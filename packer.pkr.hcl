@@ -27,7 +27,7 @@ packer {
 source "amazon-ebs" "al2023_golden" {
   region        = var.aws_region
   ami_name      = var.core_api_ami_name
-  instance_type = "t3.small"
+  instance_type = "t3.medium"
   ssh_username  = "ec2-user"
 
   force_deregister      = true
