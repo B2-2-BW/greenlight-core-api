@@ -51,7 +51,7 @@ management:
 logging:
   config: classpath:logback/logback-spring.xml
   loki:
-    url: ${LOKI_URL}
+    url: :${LOKI_URL:}
 #  pattern:
 #    level: %5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]
 #  include-application-name: false

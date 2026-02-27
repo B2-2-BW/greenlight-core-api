@@ -1,6 +1,9 @@
-FROM eclipse-temurin:25.0.1_8-jre-alpine
+FROM eclipse-temurin:25.0.2_10-jre-noble
 
-RUN apk --no-cache add tzdata
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && \
+    rm -rf /var/lib/apt/lists/*
+
 ENV TZ=Asia/Seoul
 
 WORKDIR /app
