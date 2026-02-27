@@ -13,7 +13,7 @@ variable "core_api_ami_name" {
 }
 variable "ami_ssm_parameter" {
     type = string
-    default = "/greenlight/ami/core-api/latest"
+    default = "/greenlight/ami/core-api/live"
 }
 packer {
   required_plugins {
