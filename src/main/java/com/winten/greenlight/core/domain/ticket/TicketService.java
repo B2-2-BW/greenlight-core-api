@@ -234,9 +234,9 @@ public class TicketService {
     }
 
     // TODO 이게 뭐지...?
-    private boolean verifyHash(String raw, String actual) {
-        if (Objects.equals(raw, actual)) {
-            return Mono.just(TicketVerification.fail(ticketId, "TicketId 또는 hash가 유효하지 않습니다."));
-        }
-    }
+//    private boolean verifyHash(String raw, String actual) {
+//        if (Objects.equals(raw, actual)) {
+//            return Mono.just(TicketVerification.fail(ticketId, "TicketId 또는 hash가 유효하지 않습니다."));
+//        }
+//    }
 }
