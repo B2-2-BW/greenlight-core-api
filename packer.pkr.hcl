@@ -1,8 +1,8 @@
 # 변수 선언: 기본값을 비워두어 실행 시 주입을 강제함
 variable "aws_region" {
-    type = string,
+    type = string
     default = "ap-northeast-2"
-    }
+}
 variable "aws_account_id" { type = string }
 variable "ecr_repo_name" { type = string }
 variable "image_tag" { type = string }
