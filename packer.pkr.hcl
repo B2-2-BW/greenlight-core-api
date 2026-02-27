@@ -60,7 +60,7 @@ build {
       
       # 변수를 사용하여 ECR 로그인 및 Pull 수행
       "aws ecr get-login-password --region ${var.aws_region} | sudo docker login --username AWS --password-stdin ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com",
-      "sudo docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${var.ecr_repo_name}:${var.image_tag}",
+      "sudo docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${var.ecr_repo_name}:latest",
       
       "sudo docker pull grafana/promtail:3.5",
       "sudo docker pull prom/node-exporter:v1.9.1"
