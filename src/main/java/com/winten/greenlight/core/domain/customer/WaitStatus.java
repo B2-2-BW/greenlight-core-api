@@ -31,7 +31,9 @@ public enum WaitStatus {
     /**
      * 대기 중 취소: 사용자가 대기 중 입장을 포기하고 나간 상태입니다.
      */
-    CANCELLED("대기 중 취소")
+    CANCELLED("대기 중 취소"),
+
+    EXITED("이탈")
     ;
 
     private final String description; // 상태에 대한 설명

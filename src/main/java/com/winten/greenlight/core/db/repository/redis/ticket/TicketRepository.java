@@ -34,11 +34,13 @@ public class TicketRepository {
         return redisTemplate.opsForZSet().rank(key, ticketId);
     }
 
+
+    // TODO ticket이 없으면 notfound 로 떨구기. 500에러 떨어짐
     public Mono<Ticket> findTicketById(String ticketId) {
         String key = keyBuilder.ticket(ticketId);
 
         return redisTemplate.opsForValue().get(key)
                 .flatMap(json -> Mono.fromCallable(() -> jsonMapper.readValue(json, Ticket.class)))
-                .onErrorMap(e -> new IllegalArgumentException("Failed to deserialize Room. key=" + key, e));
+                .onErrorMap(e -> new IllegalArgumentException("Failed to deserialize Ticket. key=" + key, e));
     }
 }
