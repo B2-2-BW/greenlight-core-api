@@ -94,4 +94,8 @@ public class RedisKeyBuilder {
     public String roomMetricCounter(String roomId, WaitStatus waitStatus, long timestamp) {
         return prefix + ":room:{" + roomId + "}:metric:counter:" + waitStatus + ":" + timestamp;
     }
+
+    public String roomMetricEnteredRate5m(String roomId) {
+        return prefix + ":room:{" + roomId + "}:metric:entered_rate_5m";
+    }
 }

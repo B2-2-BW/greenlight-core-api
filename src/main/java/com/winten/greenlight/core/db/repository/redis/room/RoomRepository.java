@@ -1,6 +1,7 @@
 package com.winten.greenlight.core.db.repository.redis.room;
 
 import com.winten.greenlight.core.domain.ticket.Ticket;
+import org.reactivestreams.Publisher;
 import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
@@ -66,5 +67,10 @@ public class RoomRepository {
                 }
                 return Mono.just(count);
         });
+    }
+
+    public Mono<Boolean> addToEnteredRate5m(String roomId, String ticketId, long score) {
+        String key = keyBuilder.roomMetricEnteredRate5m(roomId);
+        return redisTemplate.opsForZSet().add(key, ticketId, score);
     }
 }
