@@ -101,6 +101,7 @@ public class TicketService {
             // 비동기 로깅 작업
             Mono.when(
                     roomRepository.increaseMetricCount(roomId, WaitStatus.WAITING, targetBucket), // 실시간 유입량 계산을 위한 기록 (SortedSet)
+                    roomRepository.addToEnteredRate5m(roomId, ticketId, score),
                     updateHeartbeat
             ).subscribeOn(Schedulers.boundedElastic()) // 별도 스레드에서 실행
             .subscribe(
