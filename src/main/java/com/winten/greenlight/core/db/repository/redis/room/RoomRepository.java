@@ -46,12 +46,6 @@ public class RoomRepository {
                 .flatMap(_ -> redisTemplate.opsForZSet().rank(key, ticket.getTicketId()));
     }
 
-    public Mono<Boolean> addToRoomInflow(Ticket ticket) {
-        String key = keyBuilder.roomMetricInflow(ticket.getRoomId());
-        // 동일한 사용자를 위해 같은 key id를 쓸 경우 유입량 계산에 오류가 발생할 수 있음. 따라서 ticketId + timestamp 조합으로 value를 기록 (ex 새로고침 시)
-        return redisTemplate.opsForZSet().add(key, ticket.getTicketId() + ":" + ticket.getTimestamp(), ticket.getTimestamp());
-    }
-
     public Mono<Boolean> updateHeartbeatScore(String roomId, String ticketId, WaitStatus heartbeatType) {
         String key = keyBuilder.roomHeartbeat(roomId, heartbeatType);
         return redisTemplate.opsForZSet().add(key, ticketId, System.currentTimeMillis());
