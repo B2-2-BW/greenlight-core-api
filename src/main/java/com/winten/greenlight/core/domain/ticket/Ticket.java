@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Ticket {
     private String roomId;
+    private String adImageUrl;
     private String ticketId;
     private Long timestamp;
     private String hash;

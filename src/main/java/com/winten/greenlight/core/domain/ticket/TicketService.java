@@ -81,6 +81,7 @@ public class TicketService {
             String roomId = room.getRoomId();
             var ticket = Ticket.builder()
                     .roomId(roomId)
+                    .adImageUrl(room.getAdImageUrl())
                     .ticketId(ticketId)
                     .hash(hash)
                     .remainingUses(1)

@@ -24,5 +24,6 @@ public class Room extends AuditDto {
     private Integer capacity;
     private Boolean enabled;
     private DefaultRuleType defaultRuleType;
+    private String adImageUrl;
     private List<RoomRule> roomRules;
 }
