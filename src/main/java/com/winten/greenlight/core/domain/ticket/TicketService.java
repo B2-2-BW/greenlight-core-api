@@ -54,12 +54,19 @@ public class TicketService {
         var score = System.currentTimeMillis();
         return roomService.findRoomById(request.getRoomId())
                 .flatMap(room -> {
+                    var ticketId = generateNewTicketId();
                     if (!room.getEnabled()) {
-                        return Mono.empty(); // TODO actionGroup 비활성화 되어있을 때 바로 입장 가능하도록 반환하기
+                        return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId)); // TODO actionGroup 비활성화 되어있을 때 바로 입장 가능하도록 반환하기
                     }
                     // TODO room apikey 검증하기
-                    var ticketId = request.getTicketId() != null ? request.getTicketId() : generateNewTicketId();
-                    return processWaitingTicket(room, ticketId, score);
+                    return roomRepository.isSiteEnabled(room.getSiteId())
+                        .switchIfEmpty(Mono.just(false))
+                        .flatMap(enabled -> {
+                            if (!enabled) {
+                                return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId));
+                            }
+                            return processWaitingTicket(room, ticketId, score);
+                        });
                 });
     }
 
@@ -102,7 +109,6 @@ public class TicketService {
             // 비동기 로깅 작업
             Mono.when(
                     roomRepository.increaseMetricCount(roomId, WaitStatus.WAITING, targetBucket), // 실시간 유입량 계산을 위한 기록 (SortedSet)
-                    roomRepository.addToEnteredRate5m(roomId, ticketId, score),
                     updateHeartbeat
             ).subscribeOn(Schedulers.boundedElastic()) // 별도 스레드에서 실행
             .subscribe(
@@ -245,15 +251,26 @@ public class TicketService {
         return ticketRepository.findTicketById(ticketId)
                 .flatMap(ticket -> {
                     String roomId = ticket.getRoomId();
-                    return roomRepository.deleteHeartbeat(roomId, ticketId, heartbeatType) // Mono<Long/Integer>
+                    return roomRepository.deleteHeartbeat(roomId, ticketId, heartbeatType)
                             .doOnError(e -> log.error("deleteHeartbeat failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
                             .filter(deletedCount -> deletedCount > 0)
                             .flatMap(ignored -> {
-                                    long targetBucket = calculateMetricCounterBucket();
-                                    return roomRepository.increaseMetricCount(roomId, WaitStatus.EXITED, targetBucket)
-                                            .doOnError(e -> log.error("increaseMetricCount failed. ticketId: {}, reason: {}", ticketId, e.getMessage()));
-                                }
-                            );
+                                long targetBucket = calculateMetricCounterBucket();
+
+                                // 1. Metric Count 증가 작업
+                                Mono<Void> increaseMetricTask = roomRepository.increaseMetricCount(roomId, WaitStatus.EXITED, targetBucket)
+                                        .doOnError(e -> log.error("increaseMetricCount failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
+                                        .then();
+
+                                // 2. Entered Rate 추가 작업
+                                Mono<Void> addEnteredRateTask = roomRepository.addToExitRate5m(roomId, ticketId, System.currentTimeMillis())
+                                        .doOnError(e -> log.error("addToEnteredRate5m failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
+                                        .then();
+
+                                // 3. 두 작업을 병렬로 묶어서 실행
+                                return Mono.whenDelayError(increaseMetricTask, addEnteredRateTask)
+                                        .subscribeOn(Schedulers.boundedElastic());
+                            });
                 })
                 .then();
     }

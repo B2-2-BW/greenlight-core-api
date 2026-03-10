@@ -1,7 +1,6 @@
 package com.winten.greenlight.core.db.repository.redis.room;
 
 import com.winten.greenlight.core.domain.ticket.Ticket;
-import org.reactivestreams.Publisher;
 import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
@@ -21,6 +20,7 @@ public class RoomRepository {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final RedisKeyBuilder keyBuilder;
     private final JsonMapper jsonMapper;
+    private final ReactiveRedisTemplate<String, Object> jsonRedisTemplate;
 
     // TODO room이 없으면 notfound 로 떨구기. 500에러 떨어짐
     public Mono<Room> findRoomById(String roomId) {
@@ -70,8 +70,14 @@ public class RoomRepository {
         });
     }
 
-    public Mono<Boolean> addToEnteredRate5m(String roomId, String ticketId, long score) {
-        String key = keyBuilder.roomMetricEnteredRate5m(roomId);
+    public Mono<Boolean> addToExitRate5m(String roomId, String ticketId, long score) {
+        String key = keyBuilder.roomMetricExitRate5m(roomId);
         return redisTemplate.opsForZSet().add(key, ticketId, score);
+    }
+
+    public Mono<Boolean> isSiteEnabled(String siteId) {
+        String key = keyBuilder.siteInfoMeta(siteId);
+        return jsonRedisTemplate.opsForHash().get(key, "siteEnabled")
+                .map(obj -> Boolean.valueOf(obj.toString()));
     }
 }

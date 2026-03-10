@@ -98,4 +98,12 @@ public class RedisKeyBuilder {
     public String roomMetricEnteredRate5m(String roomId) {
         return prefix + ":room:{" + roomId + "}:metric:entered_rate_5m";
     }
+
+    public String siteInfoMeta(String siteId) {
+        return prefix + ":site:" + siteId + ":meta";
+    }
+
+    public String roomMetricExitRate5m(String roomId) {
+        return prefix + ":room:{" + roomId + "}:metric:exit_rate_5m";
+    }
 }
