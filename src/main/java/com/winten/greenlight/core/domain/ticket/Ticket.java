@@ -21,4 +21,12 @@ public class Ticket {
     private int remainingUses;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Long waitTimeMs;
+
+    public static Ticket bypassed(String roomId, String ticketId) {
+        return Ticket.builder()
+                .roomId(roomId)
+                .ticketId(ticketId)
+                .waitStatus(WaitStatus.BYPASSED)
+                .build();
+    }
 }
