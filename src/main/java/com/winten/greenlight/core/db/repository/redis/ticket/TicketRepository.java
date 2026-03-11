@@ -34,6 +34,10 @@ public class TicketRepository {
         return redisTemplate.opsForZSet().rank(key, ticketId);
     }
 
+    public Mono<Long> findHeartbeatPosition(String roomId, String ticketId, WaitStatus waitStatus) {
+        String key = keyBuilder.roomHeartbeat(roomId, waitStatus);
+        return redisTemplate.opsForZSet().rank(key, ticketId);
+    }
 
     // TODO ticket이 없으면 notfound 로 떨구기. 500에러 떨어짐
     public Mono<Ticket> findTicketById(String ticketId) {
