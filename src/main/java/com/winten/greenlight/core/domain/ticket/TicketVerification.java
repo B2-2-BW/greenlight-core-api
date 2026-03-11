@@ -13,12 +13,14 @@ import lombok.NoArgsConstructor;
 public class TicketVerification {
     private String ticketId;
     private String roomId;
+    private boolean verified;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String reason;
 
     public static TicketVerification success(String ticketId, String roomId) {
         return TicketVerification.builder()
                 .ticketId(ticketId)
+                .verified(true)
                 .roomId(roomId)
                 .build();
     }
@@ -26,6 +28,7 @@ public class TicketVerification {
     public static TicketVerification fail(String ticketId, String reason) {
         return TicketVerification.builder()
                 .ticketId(ticketId)
+                .verified(false)
                 .reason(reason)
                 .build();
     }

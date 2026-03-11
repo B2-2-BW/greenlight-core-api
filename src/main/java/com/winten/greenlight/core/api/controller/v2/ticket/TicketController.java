@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -63,11 +64,14 @@ public class TicketController {
     }
 
     @GetMapping("{ticketId}/status")
-    public Mono<TicketStatus> getTicketStatus(
+    public Mono<ResponseEntity<TicketStatus>> getTicketStatus(
             @PathVariable String ticketId,
             @RequestParam String hash
     ) {
-        return ticketService.getTicketStatus(ticketId, hash);
+        return ticketService.getTicketStatus(ticketId, hash)
+                .map(status -> ResponseEntity.ok()
+                .header("Retry-After", String.valueOf(status.getRetryAfter()))
+                .body(status));
     }
 
     /**
@@ -83,9 +87,9 @@ public class TicketController {
     @PostMapping("{ticketId}/verification")
     public Mono<TicketVerification> verifyTicket(
             @PathVariable String ticketId,
-            @RequestBody @NotEmpty String hash
+            @RequestBody TicketVerificationRequest request
     ) {
-        return ticketService.verifyTicket(ticketId, hash);
+        return ticketService.verifyTicket(ticketId, request.getHash());
     }
 
 }

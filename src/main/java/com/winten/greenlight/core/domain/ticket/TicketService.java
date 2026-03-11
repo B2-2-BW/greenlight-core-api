@@ -138,21 +138,21 @@ public class TicketService {
                 });
     }
 
-    public Mono<TicketVerification> verifyTicket(String ticketId, String hash) {
+    public Mono<TicketVerification> verifyTicket(String ticketId, String hashParam) {
         return ticketRepository.findTicketById(ticketId)
             .defaultIfEmpty(new Ticket())
             .flatMap(ticket -> {
                 if (ticket.getTicketId() == null) { // 예외케이스, 대기가 완료되지 않은 경우
                     return Mono.just(TicketVerification.fail(ticketId, "대기 ID가 유효하지 않습니다.")); // 유효하지 않은 입장권인 경우 하단 switchIfEmpty에서 처리
                 }
-                if (!hash.equals(ticket.getHash())) {
+                if (!hashParam.equals(ticket.getHash())) {
                     return Mono.just(TicketVerification.fail(ticketId, "TicketId 또는 hash가 유효하지 않습니다."));
                 }
-                return ticketRepository.findQueuePosition(ticket.getRoomId(), ticketId, WaitStatus.WAITING)
+                return ticketRepository.findHeartbeatPosition(ticket.getRoomId(), ticketId, WaitStatus.ENTERED)
                         .defaultIfEmpty(-1L)
                         .flatMap(rank -> {
                             if (rank == -1) {
-                                return Mono.just(TicketVerification.fail(ticketId, "대기가 완료되지 않았습니다."));
+                                return Mono.just(TicketVerification.fail(ticketId, "TicketId를 찾을 수 없거나 대기가 완료되지 않았습니다."));
                             }
                             var now = System.currentTimeMillis();
                             ticket.setTimestamp(now);
@@ -187,11 +187,11 @@ public class TicketService {
 
     public Mono<TicketStatus> getTicketStatus(String ticketId, String hash) {
         return ticketRepository.findTicketById(ticketId)
-                .flatMap(ticket -> this.buildTicketStatus(ticket, hash))
+                .flatMap(ticket -> this.getTicketStatus(ticket, hash))
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
     }
 
-    private Mono<TicketStatus> buildTicketStatus(Ticket ticket, String hash) {
+    private Mono<TicketStatus> getTicketStatus(Ticket ticket, String hash) {
         var roomId = ticket.getRoomId();
         var ticketId = ticket.getTicketId();
 
@@ -213,12 +213,13 @@ public class TicketService {
                                             .behindCount(behindCount)
                                             .estimatedWaitTime(estimatedWaitTime)
                                             .waitStatus(WaitStatus.WAITING) // 필요 시 상태 필드 추가
+                                            .retryAfter(5) // TODO 예상 대기시간 추가
                                             .build();
                                 });
                     }
 
                     // [CASE 2] WAITING이 아닌 경우 -> ENTERED 상태 확인
-                    return ticketRepository.findQueuePosition(roomId, ticketId, WaitStatus.ENTERED)
+                    return ticketRepository.findHeartbeatPosition(roomId, ticketId, WaitStatus.ENTERED)
                             .defaultIfEmpty(-1L)
                             .flatMap(enteredRank -> {
                                 if (enteredRank != -1L) {
