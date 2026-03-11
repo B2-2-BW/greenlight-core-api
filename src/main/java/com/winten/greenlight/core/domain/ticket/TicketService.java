@@ -262,13 +262,8 @@ public class TicketService {
                                         .doOnError(e -> log.error("increaseMetricCount failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
                                         .then();
 
-                                // 2. Entered Rate 추가 작업
-                                Mono<Void> addEnteredRateTask = roomRepository.addToExitRate5m(roomId, ticketId, System.currentTimeMillis())
-                                        .doOnError(e -> log.error("addToEnteredRate5m failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
-                                        .then();
-
                                 // 3. 두 작업을 병렬로 묶어서 실행
-                                return Mono.whenDelayError(increaseMetricTask, addEnteredRateTask)
+                                return Mono.whenDelayError(increaseMetricTask)
                                         .subscribeOn(Schedulers.boundedElastic());
                             });
                 })
