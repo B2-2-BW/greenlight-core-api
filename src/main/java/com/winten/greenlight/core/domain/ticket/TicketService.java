@@ -175,6 +175,15 @@ public class TicketService {
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
     }
 
+    public long calculateRetryAfterFromPosition(long position) {
+        if (position < 10) return 1;
+        if (position < 50) return 2;
+        if (position < 100) return 3;
+        if (position < 1000) return 4 + (position - 100) * 7 / 900; // 100 -> 3초, 1000 직전 -> 9초대
+        if (position < 10000) return 10 + (position - 1000) * 20 / 9000;
+        return 30;
+    }
+
     private Mono<TicketStatus> getTicketStatus(Ticket ticket) {
         var roomId = ticket.getRoomId();
         var ticketId = ticket.getTicketId();
@@ -197,7 +206,7 @@ public class TicketService {
                                             .behindCount(behindCount)
                                             .estimatedWaitTime(estimatedWaitTime)
                                             .waitStatus(WaitStatus.WAITING) // 필요 시 상태 필드 추가
-                                            .retryAfter(5) // TODO 예상 대기시간 추가
+                                            .retryAfter(calculateRetryAfterFromPosition(myPosition)) // TODO 예상 대기시간 추가
                                             .build();
                                 });
                     }
