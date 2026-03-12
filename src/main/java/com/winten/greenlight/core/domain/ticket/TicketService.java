@@ -10,20 +10,19 @@ import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomService;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
+import com.winten.greenlight.core.support.util.JwtUtil;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
-import jakarta.xml.bind.DatatypeConverter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class TicketService {
     private final RedisKeyBuilder redisKeyBuilder;
     private final QueueRepository queueRepository;
@@ -31,24 +30,7 @@ public class TicketService {
     private final RoomService roomService;
     private final RoomRepository roomRepository;
     private final TicketConverter ticketConverter;
-    private final MessageDigest messageDigest;
-
-    public TicketService(
-            RedisKeyBuilder redisKeyBuilder,
-            QueueRepository queueRepository,
-            TicketRepository ticketRepository,
-            RoomService roomService,
-            RoomRepository roomRepository,
-            TicketConverter ticketConverter
-    ) throws NoSuchAlgorithmException {
-        this.redisKeyBuilder = redisKeyBuilder;
-        this.queueRepository = queueRepository;
-        this.ticketRepository = ticketRepository;
-        this.roomService = roomService;
-        this.roomRepository = roomRepository;
-        this.ticketConverter = ticketConverter;
-        messageDigest = MessageDigest.getInstance("SHA-256");
-    }
+    private final JwtUtil jwtUtil;
 
     public Mono<Ticket> issueWaitingTicket(TicketIssueRequest request, String apiKey) {
         var score = System.currentTimeMillis();
@@ -82,18 +64,20 @@ public class TicketService {
         return waitingRequired.flatMap(isWaitingRequired -> {
             WaitStatus status = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.ENTERED;
 
-            String combined = ticketId + ":" + score;
-            byte[] byteHash = messageDigest.digest(combined.getBytes(StandardCharsets.UTF_8));
-            String hash = DatatypeConverter.printHexBinary(byteHash).toLowerCase();
             String roomId = room.getRoomId();
             var ticket = Ticket.builder()
                     .roomId(roomId)
                     .adImageUrl(room.getAdImageUrl())
                     .ticketId(ticketId)
-                    .hash(hash)
                     .remainingUses(1)
                     .timestamp(score)
                     .build();
+
+            // ENTERED 인 경우 바로 token 세팅
+            if (status == WaitStatus.ENTERED) {
+                String greenlightToken = jwtUtil.encode(ticketId, status);
+                ticket.setGreenlightToken(greenlightToken);
+            }
 
             Mono<Long> saveTicket = this.saveTicket(ticket)
                     .flatMap(_ -> roomRepository.addToRoomQueue(ticket, status));
@@ -145,7 +129,7 @@ public class TicketService {
                 if (ticket.getTicketId() == null) { // 예외케이스, 대기가 완료되지 않은 경우
                     return Mono.just(TicketVerification.fail(ticketId, "대기 ID가 유효하지 않습니다.")); // 유효하지 않은 입장권인 경우 하단 switchIfEmpty에서 처리
                 }
-                if (!hashParam.equals(ticket.getHash())) {
+                if (!hashParam.equals(ticket.getGreenlightToken())) {
                     return Mono.just(TicketVerification.fail(ticketId, "TicketId 또는 hash가 유효하지 않습니다."));
                 }
                 return ticketRepository.findHeartbeatPosition(ticket.getRoomId(), ticketId, WaitStatus.ENTERED)
@@ -185,13 +169,13 @@ public class TicketService {
             });
     }
 
-    public Mono<TicketStatus> getTicketStatus(String ticketId, String hash) {
+    public Mono<TicketStatus> getTicketStatus(String ticketId, String greenlightToken) {
         return ticketRepository.findTicketById(ticketId)
-                .flatMap(ticket -> this.getTicketStatus(ticket, hash))
+                .flatMap(ticket -> this.getTicketStatus(ticket))
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
     }
 
-    private Mono<TicketStatus> getTicketStatus(Ticket ticket, String hash) {
+    private Mono<TicketStatus> getTicketStatus(Ticket ticket) {
         var roomId = ticket.getRoomId();
         var ticketId = ticket.getTicketId();
 
@@ -223,11 +207,15 @@ public class TicketService {
                             .defaultIfEmpty(-1L)
                             .flatMap(enteredRank -> {
                                 if (enteredRank != -1L) {
+                                    String greenlightToken = jwtUtil.encode(ticketId, WaitStatus.ENTERED);
+
                                     // ENTERED 상태인 경우 (대기열 정보는 0이나 null로 처리하거나 상태만 반환)
                                     return Mono.just(TicketStatus.builder()
                                             .ticketId(ticketId)
                                             .waitStatus(WaitStatus.ENTERED)
-                                            .build());
+                                            .greenlightToken(greenlightToken)
+                                            .build()
+                                    );
                                 }
 
                                 // [CASE 3] 어디에도 없는 경우 -> 에러 반환

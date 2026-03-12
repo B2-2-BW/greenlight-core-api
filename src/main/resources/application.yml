@@ -60,6 +60,14 @@ redis:
   key-prefix: ${REDIS_KEY_PREFIX}
   connection-type: ${REDIS_CONNECTION_TYPE:standalone}
 
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    issuer: ${JWT_ISSUER}
+    expiration: ${JWT_EXPIRATION}
+
+
+
 springdoc:
   swagger-ui:
     groups-order: DESC
@@ -79,6 +87,7 @@ spring.config.activate.on-profile: local
 
 ---
 spring.config.activate.on-profile: dev
+
 ---
 spring.config.activate.on-profile: live
 management:

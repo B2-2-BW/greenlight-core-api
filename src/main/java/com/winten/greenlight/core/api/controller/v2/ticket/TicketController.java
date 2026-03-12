@@ -1,8 +1,11 @@
 package com.winten.greenlight.core.api.controller.v2.ticket;
 
 import com.winten.greenlight.core.domain.customer.WaitStatus;
-import com.winten.greenlight.core.domain.ticket.*;
-import jakarta.validation.constraints.NotEmpty;
+import com.winten.greenlight.core.domain.ticket.TicketConverter;
+import com.winten.greenlight.core.domain.ticket.TicketService;
+import com.winten.greenlight.core.domain.ticket.TicketStatus;
+import com.winten.greenlight.core.domain.ticket.TicketVerification;
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -66,9 +69,10 @@ public class TicketController {
     @GetMapping("{ticketId}/status")
     public Mono<ResponseEntity<TicketStatus>> getTicketStatus(
             @PathVariable String ticketId,
-            @RequestParam String hash
+            @RequestHeader("X-GREENLIGHT-TOKEN") @Nullable String greenlightToken
     ) {
-        return ticketService.getTicketStatus(ticketId, hash)
+        // TODO greenlightToken은 현재 미사용
+        return ticketService.getTicketStatus(ticketId, greenlightToken)
                 .map(status -> ResponseEntity.ok()
                 .header("Retry-After", String.valueOf(status.getRetryAfter()))
                 .body(status));

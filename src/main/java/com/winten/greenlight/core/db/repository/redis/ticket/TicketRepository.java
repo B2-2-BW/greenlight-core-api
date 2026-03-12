@@ -1,6 +1,5 @@
 package com.winten.greenlight.core.db.repository.redis.ticket;
 
-import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.ticket.Ticket;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
@@ -9,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 

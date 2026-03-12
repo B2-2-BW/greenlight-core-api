@@ -16,7 +16,7 @@ public class Ticket {
     private String adImageUrl;
     private String ticketId;
     private Long timestamp;
-    private String hash;
+    private String greenlightToken;
     private WaitStatus waitStatus;
     private int remainingUses;
     @JsonInclude(JsonInclude.Include.NON_NULL)

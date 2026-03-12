@@ -16,6 +16,7 @@ public class TicketStatus {
     private String ticketId;
     private String roomId;
     private WaitStatus waitStatus;
+    private String greenlightToken;
     private Long position;
     private Long behindCount;
     private Long queueSize;
