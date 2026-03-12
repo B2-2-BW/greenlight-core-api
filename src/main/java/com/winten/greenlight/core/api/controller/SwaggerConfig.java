@@ -30,13 +30,7 @@ public class SwaggerConfig {
     public OpenAPI openAPI() {
         var openApi = new OpenAPI()
                 .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
-                .components(new Components().addSecuritySchemes("Bearer Authentication", createAPIKeyScheme()))
-                .info(new Info().title("Greenlight")
-                        .description("Greenlight Back Office REST API.")
-                        .version("1.0").contact(new Contact().name("Daniel Choi").email("danielchoi1115@gmail.com"))
-                        .license(new License().name("License of API")
-                                .url("API license URL"))
-                );
+                .info(apiInfo());
         if ("local".equals(activeProfile)) {
             openApi.servers(List.of(new Server().url("http://localhost:"+serverPort).description("Greenlight Back Office Localhost API 서버")));
         } else {
@@ -46,15 +40,10 @@ public class SwaggerConfig {
     }
 
     private Info apiInfo() {
-        return new Info()
-                .title("Greenlight Back Office API")
-                .description("Springdoc Swagger UI")
-                .version("1.0.0");
-    }
-
-    private SecurityScheme createAPIKeyScheme() {
-        return new SecurityScheme().type(SecurityScheme.Type.HTTP)
-                .bearerFormat("JWT")
-                .scheme("bearer");
+        return new Info().title("Greenlight")
+                .description("Greenlight Back Office REST API.")
+                .version("1.0").contact(new Contact().name("Daniel Choi").email("danielchoi1115@gmail.com"))
+                .license(new License().name("License of API")
+                        .url("API license URL"));
     }
 }
