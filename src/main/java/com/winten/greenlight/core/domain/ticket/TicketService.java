@@ -38,14 +38,16 @@ public class TicketService {
                 .flatMap(room -> {
                     var ticketId = generateNewTicketId();
                     if (!room.getEnabled()) {
-                        return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId)); // TODO actionGroup 비활성화 되어있을 때 바로 입장 가능하도록 반환하기
+                        String token = jwtUtil.encode(ticketId, WaitStatus.BYPASSED);
+                        return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId, token));
                     }
                     // TODO room apikey 검증하기
                     return roomRepository.isSiteEnabled(room.getSiteId())
                         .switchIfEmpty(Mono.just(false))
                         .flatMap(enabled -> {
                             if (!enabled) {
-                                return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId));
+                                String token = jwtUtil.encode(ticketId, WaitStatus.BYPASSED);
+                                return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId, token));
                             }
                             return processWaitingTicket(room, ticketId, score);
                         });
@@ -67,17 +69,14 @@ public class TicketService {
             String roomId = room.getRoomId();
             var ticket = Ticket.builder()
                     .roomId(roomId)
-                    .adImageUrl(room.getAdImageUrl())
                     .ticketId(ticketId)
                     .remainingUses(1)
                     .timestamp(score)
                     .build();
 
             // ENTERED 인 경우 바로 token 세팅
-            if (status == WaitStatus.ENTERED) {
-                String greenlightToken = jwtUtil.encode(ticketId, status);
-                ticket.setGreenlightToken(greenlightToken);
-            }
+            String greenlightToken = jwtUtil.encode(ticketId, status);
+            ticket.setGreenlightToken(greenlightToken);
 
             Mono<Long> saveTicket = this.saveTicket(ticket)
                     .flatMap(_ -> roomRepository.addToRoomQueue(ticket, status));

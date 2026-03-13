@@ -13,7 +13,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Ticket {
     private String roomId;
-    private String adImageUrl;
     private String ticketId;
     private Long timestamp;
     private String greenlightToken;
@@ -22,11 +21,12 @@ public class Ticket {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Long waitTimeMs;
 
-    public static Ticket bypassed(String roomId, String ticketId) {
+    public static Ticket bypassed(String roomId, String ticketId, String greenlightToken) {
         return Ticket.builder()
                 .roomId(roomId)
                 .ticketId(ticketId)
                 .waitStatus(WaitStatus.BYPASSED)
+                .greenlightToken(greenlightToken)
                 .build();
     }
 }

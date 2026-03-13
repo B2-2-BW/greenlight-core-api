@@ -15,5 +15,4 @@ public class TicketResponse {
     private String roomId;
     private WaitStatus waitStatus;
     private String greenlightToken;
-    private String adImageUrl;
 }
