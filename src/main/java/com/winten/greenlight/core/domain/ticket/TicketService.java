@@ -170,7 +170,7 @@ public class TicketService {
 
     public Mono<TicketStatus> getTicketStatus(String ticketId, String greenlightToken) {
         return ticketRepository.findTicketById(ticketId)
-                .flatMap(ticket -> this.getTicketStatus(ticket))
+                .flatMap(this::getTicketStatus)
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
     }
 
@@ -192,22 +192,23 @@ public class TicketService {
                 .flatMap(rank -> {
                     // [CASE 1] WAITING 상태인 경우 (대기열 정보 계산)
                     if (rank != -1L) {
-                        return roomRepository.countWaitingCustomersInRoom(roomId)
-                                .map(totalCount -> {
-                                    long myPosition = rank + 1; // 0-based -> 1-based
-                                    long behindCount = Math.max(totalCount - myPosition, 0);
-                                    // TODO: 예상 대기 시간 계산 로직 적용
-                                    long estimatedWaitTime = 0L;
+                        return roomRepository.getLatestRoomMetric(roomId)
+                                .flatMap(metric -> roomRepository.countWaitingCustomersInRoom(roomId)
+                                        .map(totalCount -> {
+                                            long position = rank + 1; // 0-based -> 1-based
+                                            long behindCount = Math.max(totalCount - position, 0);
+                                            // TODO: 예상 대기 시간 계산 로직 적용
+                                            long estimatedWaitTime = calculateEstimatedWaitTime(metric.getRoomCapacity(), position, metric.getRecentlyExited());
 
-                                    return TicketStatus.builder()
-                                            .ticketId(ticketId)
-                                            .position(myPosition)
-                                            .behindCount(behindCount)
-                                            .estimatedWaitTime(estimatedWaitTime)
-                                            .waitStatus(WaitStatus.WAITING) // 필요 시 상태 필드 추가
-                                            .retryAfter(calculateRetryAfterFromPosition(myPosition)) // TODO 예상 대기시간 추가
-                                            .build();
-                                });
+                                            return TicketStatus.builder()
+                                                    .ticketId(ticketId)
+                                                    .position(position)
+                                                    .behindCount(behindCount)
+                                                    .estimatedWaitTime(estimatedWaitTime)
+                                                    .waitStatus(WaitStatus.WAITING)
+                                                    .retryAfter(calculateRetryAfterFromPosition(position)) // TODO 예상 대기시간 추가
+                                                    .build();
+                                        }));
                     }
 
                     // [CASE 2] WAITING이 아닌 경우 -> ENTERED 상태 확인
@@ -232,6 +233,23 @@ public class TicketService {
                 });
 
     }
+
+    private long calculateEstimatedWaitTime(long capacity, long position, long recentlyExited) {
+        if (capacity <= 0) { // capacity가 0보다 작으면 입장불가
+            return -1;
+        }
+        // 1. totalActive가 capacity 보다 작으면 바로입장 가능 (즉시 진입)
+        long remainder = position - capacity;
+        if (remainder <= 0) {
+            return 0;
+        }
+        if (recentlyExited < capacity * 3) { // 2. recentlyExited가 capacity의 30% 미만이면 평균 30초 머무는 것으로 계산
+            // recentlyExited는 3분간 나간 전체 사용자 수. 30초 머무는 상황이므로 capacity가 1일 때 3분동안 6명이 나감.
+            recentlyExited = Math.round(capacity * 2.1 + recentlyExited * 0.3);
+        }
+        return Math.max((remainder * 180) / recentlyExited, 1);
+    }
+
 
     public Mono<Boolean> updateHeartbeat(String ticketId, WaitStatus heartbeatType) {
         return ticketRepository.findTicketById(ticketId)

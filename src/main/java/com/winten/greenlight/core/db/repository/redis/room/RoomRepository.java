@@ -2,6 +2,7 @@ package com.winten.greenlight.core.db.repository.redis.room;
 
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
+import com.winten.greenlight.core.domain.room.RoomMetric;
 import com.winten.greenlight.core.domain.ticket.Ticket;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +29,19 @@ public class RoomRepository {
         String key = keyBuilder.roomMeta(roomId);
 
         return redisTemplate.opsForValue().get(key)
-                .flatMap(json -> Mono.fromCallable(() -> jsonMapper.readValue(json, Room.class)))
+                .map(json -> jsonMapper.readValue(json, Room.class))
                 .onErrorMap(e -> new IllegalArgumentException("Failed to deserialize Room. key=" + key, e));
     }
 
     public Mono<Long> countWaitingCustomersInRoom(String roomId) {
         var key = keyBuilder.roomQueue(roomId, WaitStatus.WAITING);
         return redisTemplate.opsForZSet().size(key);
+    }
+
+    public Mono<RoomMetric> getLatestRoomMetric(String roomId) {
+        var key = keyBuilder.roomMetricLatest(roomId);
+        return redisTemplate.opsForValue().get(key)
+                .map(value -> jsonMapper.readValue(value, RoomMetric.class));
     }
 
     public Mono<Long> countEnteredCustomersInRoom(String roomId) {
