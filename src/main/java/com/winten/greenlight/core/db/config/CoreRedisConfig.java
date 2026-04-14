@@ -1,6 +1,7 @@
 package com.winten.greenlight.core.db.config;
 
 import io.lettuce.core.ReadFrom;
+import io.lettuce.core.SocketOptions;
 import io.lettuce.core.TimeoutOptions;
 import io.lettuce.core.cluster.ClusterClientOptions;
 import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
@@ -9,7 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
@@ -65,6 +65,12 @@ public class CoreRedisConfig {
                 .enablePeriodicRefresh(Duration.ofSeconds(30)) // 주기적으로 토폴로지 새로고침
                 .enableAllAdaptiveRefreshTriggers() // MOVEC, ASK 등 트리거에 반응하여 새로고침
                 .adaptiveRefreshTriggersTimeout(Duration.ofSeconds(25)) // 적응형 새로고침 타임아웃
+                .dynamicRefreshSources(true)
+                .closeStaleConnections(true)
+                .build();
+
+        var socketOptions = SocketOptions.builder()
+                .keepAlive(true)
                 .build();
 
         var clusterClientOptions = ClusterClientOptions.builder()
@@ -72,6 +78,8 @@ public class CoreRedisConfig {
                 .timeoutOptions(TimeoutOptions.enabled(Duration.ofSeconds(3)))
                 .maxRedirects(3)
                 .autoReconnect(true)
+                .pingBeforeActivateConnection(true)
+                .socketOptions(socketOptions)
                 .build();
 
         var clientConfig = LettuceClientConfiguration.builder()
