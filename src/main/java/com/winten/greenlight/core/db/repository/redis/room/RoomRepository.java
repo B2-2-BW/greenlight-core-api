@@ -81,4 +81,9 @@ public class RoomRepository {
         return jsonRedisTemplate.opsForHash().get(key, "siteEnabled")
                 .map(obj -> Boolean.valueOf(obj.toString()));
     }
+
+    public Mono<Long> deleteQueue(String roomId, String ticketId, WaitStatus waitStatus) {
+        String key = keyBuilder.roomQueue(roomId, waitStatus);
+        return redisTemplate.opsForZSet().remove(key, ticketId);
+    }
 }

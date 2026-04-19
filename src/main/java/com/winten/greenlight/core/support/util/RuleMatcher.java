@@ -51,10 +51,10 @@ public class RuleMatcher {
                 return requestValue.equals(ruleValue);
             case CONTAINS:
                 return requestValue.contains(ruleValue);
-            case STARTSWITH:
-                return requestValue.startsWith(ruleValue);
-            case ENDSWITH:
-                return requestValue.endsWith(ruleValue);
+//            case STARTSWITH:
+//                return requestValue.startsWith(ruleValue);
+//            case ENDSWITH:
+//                return requestValue.endsWith(ruleValue);
             default:
                 return false;
         }

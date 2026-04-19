@@ -33,7 +33,7 @@ public enum WaitStatus {
      */
     CANCELLED("대기 중 취소"),
 
-    EXITED("이탈")
+    EXITED("화면 이탈")
     ;
 
     private final String description; // 상태에 대한 설명
