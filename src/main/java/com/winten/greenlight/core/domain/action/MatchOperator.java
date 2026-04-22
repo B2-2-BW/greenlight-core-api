@@ -23,11 +23,11 @@ public enum MatchOperator {
      * 파라미터 값이 규칙의 값으로 시작하는지 확인합니다.
      * 예: "couponCode"가 "SUMMER-"로 시작할 때 매칭
      */
-    STARTSWITH,
+//    STARTSWITH,
 
     /**
      * 파라미터 값이 규칙의 값으로 끝나는지 확인합니다.
      * 예: "fileName"이 ".zip"으로 끝날 때 매칭
      */
-    ENDSWITH
+//    ENDSWITH
 }

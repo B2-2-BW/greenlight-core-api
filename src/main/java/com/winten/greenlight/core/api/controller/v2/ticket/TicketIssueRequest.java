@@ -11,5 +11,5 @@ import lombok.Setter;
 @AllArgsConstructor
 public class TicketIssueRequest {
     private String roomId;
-    private String ticketId;
+    private String ruleParameter;
 }

@@ -5,8 +5,10 @@ import com.winten.greenlight.core.api.controller.v2.ticket.TicketIssueRequest;
 import com.winten.greenlight.core.db.repository.redis.queue.QueueRepository;
 import com.winten.greenlight.core.db.repository.redis.room.RoomRepository;
 import com.winten.greenlight.core.db.repository.redis.ticket.TicketRepository;
+import com.winten.greenlight.core.domain.action.DefaultRuleType;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
+import com.winten.greenlight.core.domain.room.RoomRule;
 import com.winten.greenlight.core.domain.room.RoomService;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
@@ -37,7 +39,7 @@ public class TicketService {
         return roomService.findRoomById(request.getRoomId())
                 .flatMap(room -> {
                     var ticketId = generateNewTicketId();
-                    if (!room.getEnabled()) {
+                    if (!room.getEnabled() || !matchesRoomRule(room, request.getRuleParameter())) {
                         String token = jwtUtil.encode(ticketId, WaitStatus.BYPASSED);
                         return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId, token));
                     }
@@ -52,6 +54,34 @@ public class TicketService {
                             return processWaitingTicket(room, ticketId, score);
                         });
                 });
+    }
+
+    // rule에 맞춰 대기열 타야하는지 검사
+    private boolean matchesRoomRule(Room room, String parameter) {
+        if (room.getDefaultRuleType() == DefaultRuleType.ALL) { // ALL → 무조건 대기열 타야함
+            return true;
+        }
+
+        boolean isInclude = room.getDefaultRuleType() == DefaultRuleType.INCLUDE;
+
+        if (parameter == null || parameter.isBlank()) {
+            return !isInclude; // INCLUDE → false (paramter가 없으니 무조건 대기열 안탐), EXCLUDE → true (paramter가 없으니 무조건 대기열 타야함)
+        }
+
+        for (RoomRule rule : room.getRoomRules()) {
+            var targetValue = rule.getValue();
+            boolean matched = switch (rule.getMatchOperator()) {
+                case EQUAL    -> parameter.equals(targetValue);
+                case CONTAINS -> parameter.contains(targetValue);
+            };
+
+            if (matched) { // 특정 조건에 맞는 경우
+                return isInclude; // INCLUDE → true(대기열 타야함), EXCLUDE → false(대기열 제외)
+            }
+        }
+
+        // 조건에 맞지 않은 경우
+        return !isInclude; // INCLUDE → false, EXCLUDE → true
     }
 
     private String generateNewTicketId() {
@@ -266,18 +296,21 @@ public class TicketService {
         return ticketRepository.findTicketById(ticketId)
                 .flatMap(ticket -> {
                     String roomId = ticket.getRoomId();
-                    return roomRepository.deleteHeartbeat(roomId, ticketId, heartbeatType)
+                    return Mono.zip(
+                                roomRepository.deleteHeartbeat(roomId, ticketId, heartbeatType),
+                                roomRepository.deleteQueue(roomId, ticketId, heartbeatType)
+                            )
                             .doOnError(e -> log.error("deleteHeartbeat failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
-                            .filter(deletedCount -> deletedCount > 0)
+                            .filter(tuple -> tuple.getT1() + tuple.getT2() > 0)
                             .flatMap(ignored -> {
                                 long targetBucket = calculateMetricCounterBucket();
 
                                 // 1. Metric Count 증가 작업
-                                Mono<Void> increaseMetricTask = roomRepository.increaseMetricCount(roomId, WaitStatus.EXITED, targetBucket)
+                                var metricType = heartbeatType == WaitStatus.WAITING ? WaitStatus.CANCELLED : WaitStatus.EXITED; // 대기 중 이탈했다면 CANCELLED, 아니라면 EXITED
+                                Mono<Void> increaseMetricTask = roomRepository.increaseMetricCount(roomId, metricType, targetBucket)
                                         .doOnError(e -> log.error("increaseMetricCount failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
                                         .then();
 
-                                // 3. 두 작업을 병렬로 묶어서 실행
                                 return Mono.whenDelayError(increaseMetricTask)
                                         .subscribeOn(Schedulers.boundedElastic());
                             });
