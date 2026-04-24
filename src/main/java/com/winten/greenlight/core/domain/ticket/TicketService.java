@@ -201,12 +201,13 @@ public class TicketService {
 
     public Mono<TicketStatus> getTicketStatus(String ticketId, String greenlightToken) {
         return ticketRepository.findTicketById(ticketId)
+                .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)))
                 .flatMap(ticket ->  getTicketStatus(ticket)
-                            .doOnNext(ignored -> 
-                                    // 60초 뒤에 만료되는 waiting heartbeat 갱신
-                                    this.updateHeartbeatToNow(ticket.getRoomId(), ticketId, WaitStatus.WAITING))
-                )
-                .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
+                            .flatMap(status ->
+                                    this.updateHeartbeatToNow(ticket.getRoomId(), ticketId, WaitStatus.WAITING) // 60초 뒤에 만료되는 waiting heartbeat 갱신
+                                    .thenReturn(status)
+                            )
+                );
     }
 
     public long calculateRetryAfterFromPosition(long position) {
