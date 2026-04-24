@@ -94,7 +94,7 @@ public class TicketService {
         Mono<Boolean> waitingRequired = this.isWaitingRequired(room.getRoomId(), room.getCapacity());
 
         return waitingRequired.flatMap(isWaitingRequired -> {
-            WaitStatus status = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.ENTERED;
+            WaitStatus nextStatus = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.ENTERED;
 
             String roomId = room.getRoomId();
             var ticket = Ticket.builder()
@@ -105,31 +105,32 @@ public class TicketService {
                     .build();
 
             // ENTERED 인 경우 바로 token 세팅
-            String greenlightToken = jwtUtil.encode(ticketId, status);
+            String greenlightToken = jwtUtil.encode(ticketId, nextStatus);
             ticket.setGreenlightToken(greenlightToken);
 
             Mono<Long> saveTicket = this.saveTicket(ticket)
-                    .flatMap(_ -> roomRepository.addToRoomQueue(ticket, status));
+                    .flatMap(_ -> roomRepository.addToRoomQueue(ticket, nextStatus));
 
             long targetBucket = this.calculateMetricCounterBucket();
 
             // 바로 입장했을 경우 heartbeat 업데이트
-            Mono<Void> updateHeartbeat = (status == WaitStatus.ENTERED)
-                    ? roomRepository.updateHeartbeatScore(roomId, ticketId, status)
-                    .then(roomRepository.increaseMetricCount(roomId, status, targetBucket))
+            Mono<Void> increaseMetricCount = (nextStatus == WaitStatus.ENTERED)
+                    ? roomRepository.increaseMetricCount(roomId, nextStatus, targetBucket)
                     .then()
                     : Mono.empty();
+
             // 비동기 로깅 작업
             Mono.when(
                     roomRepository.increaseMetricCount(roomId, WaitStatus.WAITING, targetBucket), // 실시간 유입량 계산을 위한 기록 (SortedSet)
-                    updateHeartbeat
+                    this.updateHeartbeatToNow(roomId, ticketId, nextStatus), // heartbeat 업데이트. 집계 시 3초 오차 감안
+                    increaseMetricCount
             ).subscribeOn(Schedulers.boundedElastic()) // 별도 스레드에서 실행
             .subscribe(
                     null,
                     e -> log.error("[Async Log Error] failed for ticket: {}", ticketId, e) // 에러 발생 시 로그 남김
             );
 
-            ticket.setWaitStatus(status);
+            ticket.setWaitStatus(nextStatus);
             return saveTicket.thenReturn(ticket);
         });
     }
@@ -200,7 +201,11 @@ public class TicketService {
 
     public Mono<TicketStatus> getTicketStatus(String ticketId, String greenlightToken) {
         return ticketRepository.findTicketById(ticketId)
-                .flatMap(this::getTicketStatus)
+                .flatMap(ticket ->  getTicketStatus(ticket)
+                            .doOnNext(ignored -> 
+                                    // 60초 뒤에 만료되는 waiting heartbeat 갱신
+                                    this.updateHeartbeatToNow(ticket.getRoomId(), ticketId, WaitStatus.WAITING))
+                )
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
     }
 
@@ -281,10 +286,15 @@ public class TicketService {
     }
 
 
-    public Mono<Boolean> updateHeartbeat(String ticketId, WaitStatus heartbeatType) {
+    public Mono<Boolean> updateHeartbeatFromTicketId(String ticketId, WaitStatus heartbeatType) {
         return ticketRepository.findTicketById(ticketId)
-                .flatMap(ticket -> roomRepository.updateHeartbeatScore(ticket.getRoomId(), ticketId, heartbeatType))
+                .flatMap(ticket -> this.updateHeartbeatToNow(ticket.getRoomId(), ticketId, heartbeatType))
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
+    }
+
+    public Mono<Boolean> updateHeartbeatToNow(String roomId, String ticketId, WaitStatus heartbeatType) {
+        var score = System.currentTimeMillis() - 3000;
+        return roomRepository.updateHeartbeatScore(roomId, ticketId, heartbeatType, score);
     }
 
     private long calculateMetricCounterBucket() {

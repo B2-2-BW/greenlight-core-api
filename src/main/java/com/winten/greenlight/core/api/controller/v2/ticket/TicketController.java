@@ -51,7 +51,7 @@ public class TicketController {
             @PathVariable String ticketId,
             @RequestParam WaitStatus heartbeatType
     ) {
-        return ticketService.updateHeartbeat(ticketId, heartbeatType);
+        return ticketService.updateHeartbeatFromTicketId(ticketId, heartbeatType);
     }
 
     /**
