@@ -55,9 +55,8 @@ public class RoomRepository {
                 .flatMap(_ -> redisTemplate.opsForZSet().rank(key, ticket.getTicketId()));
     }
 
-    public Mono<Boolean> updateHeartbeatScore(String roomId, String ticketId, WaitStatus heartbeatType) {
+    public Mono<Boolean> updateHeartbeatScore(String roomId, String ticketId, WaitStatus heartbeatType, long score) {
         String key = keyBuilder.roomHeartbeat(roomId, heartbeatType);
-        var score = System.currentTimeMillis() - 3000; // heartbeat 집계 시 3초 오차가 있기 때문에, 현재 시간에서 3초 전 시간으로 갱신
         return redisTemplate.opsForZSet().add(key, ticketId, score);
     }
 
