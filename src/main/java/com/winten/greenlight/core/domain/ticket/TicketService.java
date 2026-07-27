@@ -109,30 +109,34 @@ public class TicketService {
             ticket.setGreenlightToken(greenlightToken);
 
             Mono<Long> saveTicket = this.saveTicket(ticket)
-                    .flatMap(_ -> roomRepository.addToRoomQueue(ticket, nextStatus));
-
-            long targetBucket = this.calculateMetricCounterBucket();
-
-            // 바로 입장했을 경우 heartbeat 업데이트
-            Mono<Void> increaseMetricCount = (nextStatus == WaitStatus.ENTERED)
-                    ? roomRepository.increaseMetricCount(roomId, nextStatus, targetBucket)
-                    .then()
-                    : Mono.empty();
-
-            // 비동기 로깅 작업
-            Mono.when(
-                    roomRepository.increaseMetricCount(roomId, WaitStatus.WAITING, targetBucket), // 실시간 유입량 계산을 위한 기록 (SortedSet)
-                    this.updateHeartbeatToNow(roomId, ticketId, nextStatus), // heartbeat 업데이트. 집계 시 3초 오차 감안
-                    increaseMetricCount
-            ).subscribeOn(Schedulers.boundedElastic()) // 별도 스레드에서 실행
-            .subscribe(
-                    null,
-                    e -> log.error("[Async Log Error] failed for ticket: {}", ticketId, e) // 에러 발생 시 로그 남김
-            );
+                    .flatMap(_ -> Mono.zip(
+                                    roomRepository.addToRoomQueue(ticket, nextStatus),
+                                    this.createHeartbeatToNow(roomId, ticketId, nextStatus)
+                            )
+                            .map(tuple -> tuple.getT1()));
 
             ticket.setWaitStatus(nextStatus);
-            return saveTicket.thenReturn(ticket);
+            return saveTicket
+                    .doOnSuccess(_ -> this.recordTicketIssueMetrics(roomId, ticketId, nextStatus))
+                    .thenReturn(ticket);
         });
+    }
+
+    private void recordTicketIssueMetrics(String roomId, String ticketId, WaitStatus nextStatus) {
+        long targetBucket = this.calculateMetricCounterBucket();
+        Mono<Void> increaseEnteredMetric = (nextStatus == WaitStatus.ENTERED)
+                ? roomRepository.increaseMetricCount(roomId, nextStatus, targetBucket).then()
+                : Mono.empty();
+
+        Mono.when(
+                        roomRepository.increaseMetricCount(roomId, WaitStatus.WAITING, targetBucket),
+                        increaseEnteredMetric
+                )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                        null,
+                        e -> log.error("[Async Log Error] failed for ticket: {}", ticketId, e)
+                );
     }
 
     private Mono<Boolean> saveTicket(Ticket ticket) {
@@ -203,10 +207,13 @@ public class TicketService {
         return ticketRepository.findTicketById(ticketId)
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)))
                 .flatMap(ticket ->  getTicketStatus(ticket)
-                            .flatMap(status ->
-                                    this.updateHeartbeatToNow(ticket.getRoomId(), ticketId, WaitStatus.WAITING) // 60초 뒤에 만료되는 waiting heartbeat 갱신
-                                    .thenReturn(status)
-                            )
+                            .flatMap(status -> {
+                                if (status.getWaitStatus() != WaitStatus.WAITING) {
+                                    return Mono.just(status);
+                                }
+                                return this.refreshHeartbeatToNow(ticket.getRoomId(), ticketId, WaitStatus.WAITING)
+                                        .thenReturn(status);
+                            })
                 );
     }
 
@@ -289,13 +296,18 @@ public class TicketService {
 
     public Mono<Boolean> updateHeartbeatFromTicketId(String ticketId, WaitStatus heartbeatType) {
         return ticketRepository.findTicketById(ticketId)
-                .flatMap(ticket -> this.updateHeartbeatToNow(ticket.getRoomId(), ticketId, heartbeatType))
+                .flatMap(ticket -> this.refreshHeartbeatToNow(ticket.getRoomId(), ticketId, heartbeatType))
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
     }
 
-    public Mono<Boolean> updateHeartbeatToNow(String roomId, String ticketId, WaitStatus heartbeatType) {
+    private Mono<Boolean> createHeartbeatToNow(String roomId, String ticketId, WaitStatus heartbeatType) {
         var score = System.currentTimeMillis() - 3000;
-        return roomRepository.updateHeartbeatScore(roomId, ticketId, heartbeatType, score);
+        return roomRepository.createHeartbeatScore(roomId, ticketId, heartbeatType, score);
+    }
+
+    private Mono<Boolean> refreshHeartbeatToNow(String roomId, String ticketId, WaitStatus heartbeatType) {
+        var score = System.currentTimeMillis() - 3000;
+        return roomRepository.refreshHeartbeatScore(roomId, ticketId, heartbeatType, score);
     }
 
     private long calculateMetricCounterBucket() {
@@ -312,7 +324,7 @@ public class TicketService {
                                 roomRepository.deleteQueue(roomId, ticketId, heartbeatType)
                             )
                             .doOnError(e -> log.error("deleteHeartbeat failed. ticketId: {}, reason: {}", ticketId, e.getMessage()))
-                            .filter(tuple -> tuple.getT1() + tuple.getT2() > 0)
+                            .filter(tuple -> tuple.getT1() > 0)
                             .flatMap(ignored -> {
                                 long targetBucket = calculateMetricCounterBucket();
 

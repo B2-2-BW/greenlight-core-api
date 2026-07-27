@@ -7,7 +7,10 @@ import com.winten.greenlight.core.domain.ticket.Ticket;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.ReactiveZSetCommands;
+import org.springframework.data.redis.connection.zset.DefaultTuple;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.data.redis.util.ByteUtils;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.json.JsonMapper;
@@ -55,9 +58,28 @@ public class RoomRepository {
                 .flatMap(_ -> redisTemplate.opsForZSet().rank(key, ticket.getTicketId()));
     }
 
-    public Mono<Boolean> updateHeartbeatScore(String roomId, String ticketId, WaitStatus heartbeatType, long score) {
+    public Mono<Boolean> createHeartbeatScore(String roomId, String ticketId, WaitStatus heartbeatType, long score) {
         String key = keyBuilder.roomHeartbeat(roomId, heartbeatType);
         return redisTemplate.opsForZSet().add(key, ticketId, score);
+    }
+
+    public Mono<Boolean> refreshHeartbeatScore(String roomId, String ticketId, WaitStatus heartbeatType, long score) {
+        String key = keyBuilder.roomHeartbeat(roomId, heartbeatType);
+        var serializationContext = redisTemplate.getSerializationContext();
+        var rawKey = serializationContext.getKeySerializationPair().write(key);
+        var rawTicketId = serializationContext.getValueSerializationPair().write(ticketId);
+        var tuple = new DefaultTuple(ByteUtils.getBytes(rawTicketId), (double) score);
+        var command = ReactiveZSetCommands.ZAddCommand.tuple(tuple)
+                .to(rawKey)
+                .xx()
+                .ch();
+
+        return redisTemplate.execute(connection ->
+                        connection.zSetCommands()
+                                .zAdd(Mono.just(command))
+                                .map(response -> response.getOutput().longValue() > 0)
+                )
+                .next();
     }
 
     public Mono<Long> deleteHeartbeat(String roomId, String ticketId, WaitStatus heartbeatType) {
