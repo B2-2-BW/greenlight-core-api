@@ -3,6 +3,7 @@ package com.winten.greenlight.core.db.repository.redis.room;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomMetric;
+import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.domain.ticket.Ticket;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
@@ -97,10 +98,25 @@ public class RoomRepository {
         ).next();
     }
 
-    public Mono<Boolean> isSiteEnabled(String siteId) {
+    public Mono<SiteOperationStatus> findSiteOperationStatus(String siteId) {
         String key = keyBuilder.siteInfoMeta(siteId);
-        return jsonRedisTemplate.opsForHash().get(key, "siteEnabled")
-                .map(obj -> Boolean.valueOf(obj.toString()));
+        return jsonRedisTemplate.<String, Object>opsForHash()
+                .multiGet(key, List.of("siteEnabled", "queueEnabled"))
+                .map(this::toSiteOperationStatus);
+    }
+
+    private SiteOperationStatus toSiteOperationStatus(List<Object> values) {
+        Object siteEnabled = values.get(0);
+        Object queueEnabled = values.get(1);
+
+        if (queueEnabled == null) { // Legacy: siteEnabled represented queue operation status.
+            return new SiteOperationStatus(true, toBoolean(siteEnabled));
+        }
+        return new SiteOperationStatus(toBoolean(siteEnabled), toBoolean(queueEnabled));
+    }
+
+    private boolean toBoolean(Object value) {
+        return value != null && Boolean.parseBoolean(value.toString());
     }
 
     public Mono<Long> deleteQueue(String roomId, String ticketId, WaitStatus waitStatus) {

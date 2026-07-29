@@ -10,6 +10,7 @@ import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomRule;
 import com.winten.greenlight.core.domain.room.RoomService;
+import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.util.JwtUtil;
@@ -39,15 +40,16 @@ public class TicketService {
         return roomService.findRoomById(request.getRoomId())
                 .flatMap(room -> {
                     var ticketId = generateNewTicketId();
-                    if (!room.getEnabled() || !matchesRoomRule(room, request.getRuleParameter())) {
-                        String token = jwtUtil.encode(ticketId, WaitStatus.BYPASSED);
-                        return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId, token));
-                    }
                     // TODO room apikey 검증하기
-                    return roomRepository.isSiteEnabled(room.getSiteId())
-                        .switchIfEmpty(Mono.just(false))
-                        .flatMap(enabled -> {
-                            if (!enabled) {
+                    return roomRepository.findSiteOperationStatus(room.getSiteId())
+                        .defaultIfEmpty(new SiteOperationStatus(true, false))
+                        .flatMap(siteStatus -> {
+                            if (!siteStatus.siteEnabled()) {
+                                return Mono.error(CoreException.of(ErrorCode.SITE_DISABLED));
+                            }
+                            if (!siteStatus.queueEnabled()
+                                    || !room.getEnabled()
+                                    || !matchesRoomRule(room, request.getRuleParameter())) {
                                 String token = jwtUtil.encode(ticketId, WaitStatus.BYPASSED);
                                 return Mono.just(Ticket.bypassed(room.getRoomId(), ticketId, token));
                             }
