@@ -1,6 +1,8 @@
 package com.winten.greenlight.core.db.repository.redis.room;
 
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
+import com.winten.greenlight.core.support.error.CoreException;
+import com.winten.greenlight.core.support.error.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -86,17 +88,17 @@ class RoomRepositoryTest {
     }
 
     @Test
-    void bypassesSafelyWhenSiteMetaHashIsAbsent() {
+    void rejectsWhenSiteMetaHashIsAbsent() {
         when(hashOperations.multiGet(
                 "greenlight:site:site-1:meta",
                 List.of("siteEnabled", "queueEnabled")
         )).thenReturn(Mono.just(Arrays.asList(null, null)));
 
         StepVerifier.create(roomRepository.findSiteOperationStatus("site-1"))
-                .assertNext(status -> {
-                    assertThat(status.siteEnabled()).isTrue();
-                    assertThat(status.queueEnabled()).isFalse();
+                .expectErrorSatisfies(error -> {
+                    assertThat(error).isInstanceOf(CoreException.class);
+                    assertThat(((CoreException) error).getErrorCode()).isEqualTo(ErrorCode.SITE_STATUS_UNAVAILABLE);
                 })
-                .verifyComplete();
+                .verify();
     }
 }

@@ -10,7 +10,6 @@ import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomRule;
 import com.winten.greenlight.core.domain.room.RoomService;
-import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.util.JwtUtil;
@@ -42,7 +41,7 @@ public class TicketService {
                     var ticketId = generateNewTicketId();
                     // TODO room apikey 검증하기
                     return roomRepository.findSiteOperationStatus(room.getSiteId())
-                        .defaultIfEmpty(new SiteOperationStatus(true, false))
+                        .switchIfEmpty(Mono.error(CoreException.of(ErrorCode.SITE_STATUS_UNAVAILABLE)))
                         .flatMap(siteStatus -> {
                             if (!siteStatus.siteEnabled()) {
                                 return Mono.error(CoreException.of(ErrorCode.SITE_DISABLED));
