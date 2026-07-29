@@ -71,11 +71,11 @@ class RoomRepositoryTest {
     }
 
     @Test
-    void treatsLegacySiteEnabledAsQueueEnabledWhenQueueFlagIsAbsent() {
+    void doesNotUseSiteEnabledAsQueueEnabledWhenQueueFlagIsAbsent() {
         when(hashOperations.multiGet(
                 "greenlight:site:site-1:meta",
                 List.of("siteEnabled", "queueEnabled")
-        )).thenReturn(Mono.just(Arrays.asList(false, null)));
+        )).thenReturn(Mono.just(Arrays.asList(true, null)));
 
         StepVerifier.create(roomRepository.findSiteOperationStatus("site-1"))
                 .assertNext(status -> {
