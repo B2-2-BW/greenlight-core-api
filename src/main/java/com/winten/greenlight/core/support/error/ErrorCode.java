@@ -15,6 +15,7 @@ public enum ErrorCode {
 
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "Bad Request.", LogLevel.INFO),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid token.", LogLevel.INFO),
+    SITE_DISABLED(HttpStatus.FORBIDDEN, "Site is disabled.", LogLevel.INFO),
     INVALID_TICKET_STATE(HttpStatus.BAD_REQUEST, "Invalid Ticket state.", LogLevel.WARN),
 
     REDIS_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error has occurred while accessing data." , LogLevel.ERROR),
