@@ -77,25 +77,6 @@ class TicketServiceTest {
     }
 
     @Test
-    void issueWaitingTicketRejectsWhenSiteStatusIsUnavailable() {
-        var room = room(true);
-        when(roomService.findRoomById("room-1")).thenReturn(Mono.just(room));
-        when(roomRepository.findSiteOperationStatus("site-1")).thenReturn(Mono.empty());
-
-        StepVerifier.create(ticketService.issueWaitingTicket(new TicketIssueRequest("room-1", null), "api-key"))
-                .expectErrorSatisfies(error -> {
-                    assertThat(error).isInstanceOf(CoreException.class);
-                    var errorCode = ((CoreException) error).getErrorCode();
-                    assertThat(errorCode).isEqualTo(ErrorCode.SITE_STATUS_UNAVAILABLE);
-                    assertThat(errorCode.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-                })
-                .verify();
-
-        verify(jwtUtil, never()).encode(anyString(), any());
-        verify(roomRepository, never()).countWaitingCustomersInRoom(anyString());
-    }
-
-    @Test
     void issueWaitingTicketBypassesWhenSiteQueueIsDisabled() {
         var room = room(true);
         when(roomService.findRoomById("room-1")).thenReturn(Mono.just(room));

@@ -5,8 +5,6 @@ import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomMetric;
 import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.domain.ticket.Ticket;
-import com.winten.greenlight.core.support.error.CoreException;
-import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -104,17 +102,12 @@ public class RoomRepository {
         String key = keyBuilder.siteInfoMeta(siteId);
         return jsonRedisTemplate.<String, Object>opsForHash()
                 .multiGet(key, List.of("siteEnabled", "queueEnabled"))
-                .switchIfEmpty(Mono.error(CoreException.of(ErrorCode.SITE_STATUS_UNAVAILABLE)))
                 .map(this::toSiteOperationStatus);
     }
 
     private SiteOperationStatus toSiteOperationStatus(List<Object> values) {
-        Object siteEnabled = values.isEmpty() ? null : values.get(0);
-        Object queueEnabled = values.size() < 2 ? null : values.get(1);
-
-        if (siteEnabled == null && queueEnabled == null) {
-            throw CoreException.of(ErrorCode.SITE_STATUS_UNAVAILABLE);
-        }
+        Object siteEnabled = values.get(0);
+        Object queueEnabled = values.get(1);
 
         if (queueEnabled == null) { // Legacy: siteEnabled represented queue operation status.
             return new SiteOperationStatus(true, toBoolean(siteEnabled));
