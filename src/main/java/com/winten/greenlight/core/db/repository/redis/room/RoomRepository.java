@@ -109,8 +109,8 @@ public class RoomRepository {
         Object siteEnabled = values.get(0);
         Object queueEnabled = values.get(1);
 
-        if (queueEnabled == null) { // Legacy: siteEnabled represented queue operation status.
-            return new SiteOperationStatus(true, toBoolean(siteEnabled));
+        if (siteEnabled == null && queueEnabled == null) {
+            return new SiteOperationStatus(true, false);
         }
         return new SiteOperationStatus(toBoolean(siteEnabled), toBoolean(queueEnabled));
     }
