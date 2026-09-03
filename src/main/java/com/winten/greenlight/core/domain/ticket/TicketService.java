@@ -292,7 +292,10 @@ public class TicketService {
             // recentlyExited는 3분간 나간 전체 사용자 수. 30초 머무는 상황이므로 capacity가 1일 때 3분동안 6명이 나감.
             recentlyExited = Math.round(capacity * 2.1 + recentlyExited * 0.3);
         }
-        return Math.max((remainder * 180) / recentlyExited, 1);
+        long estimatedWaitTime = (remainder * 180) / recentlyExited;
+
+        // return Math.max(estimatedWaitTime, 1);
+        return Math.max(estimatedWaitTime / 2, 1); // 26.09.03 예외적으로 대기시간 50% 보정
     }
 
 
