@@ -4,7 +4,6 @@ import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomMetric;
 import com.winten.greenlight.core.domain.site.SiteOperationStatus;
-import com.winten.greenlight.core.domain.ticket.Ticket;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,20 +47,37 @@ public class RoomRepository {
                 .map(value -> jsonMapper.readValue(value, RoomMetric.class));
     }
 
-    public Mono<Long> countEnteredCustomersInRoom(String roomId) {
-        var key = keyBuilder.roomHeartbeat(roomId, WaitStatus.ENTERED);
-        return redisTemplate.opsForZSet().size(key);
-    }
+    public Mono<WaitStatus> enqueueIssuedTicket(
+            String roomId,
+            String ticketId,
+            int capacity,
+            long queueScore,
+            long heartbeatScore,
+            long metricBucket
+    ) {
+        List<String> keys = List.of(
+                keyBuilder.roomQueue(roomId, WaitStatus.WAITING),
+                keyBuilder.roomQueue(roomId, WaitStatus.ENTERED),
+                keyBuilder.roomHeartbeat(roomId, WaitStatus.WAITING),
+                keyBuilder.roomHeartbeat(roomId, WaitStatus.ENTERED),
+                keyBuilder.roomMetricCounter(roomId, WaitStatus.WAITING, metricBucket),
+                keyBuilder.roomMetricCounter(roomId, WaitStatus.ENTERED, metricBucket)
+        );
+        List<String> args = List.of(
+                ticketId,
+                String.valueOf(queueScore),
+                String.valueOf(heartbeatScore),
+                String.valueOf(capacity),
+                "180"
+        );
 
-    public Mono<Long> addToRoomQueue(Ticket ticket, WaitStatus waitStatus) {
-        String key = keyBuilder.roomQueue(ticket.getRoomId(), waitStatus);
-        return redisTemplate.opsForZSet().add(key, ticket.getTicketId(), ticket.getTimestamp())
-                .flatMap(_ -> redisTemplate.opsForZSet().rank(key, ticket.getTicketId()));
-    }
-
-    public Mono<Boolean> createHeartbeatScore(String roomId, String ticketId, WaitStatus heartbeatType, long score) {
-        String key = keyBuilder.roomHeartbeat(roomId, heartbeatType);
-        return redisTemplate.opsForZSet().add(key, ticketId, score);
+        return redisTemplate.execute(
+                        roomRedisScript.getIssueTicketRedisScript(),
+                        keys,
+                        args
+                )
+                .next()
+                .map(statusCode -> statusCode != null && statusCode == 1L ? WaitStatus.ENTERED : WaitStatus.WAITING);
     }
 
     public Mono<Boolean> refreshHeartbeatScore(String roomId, String ticketId, WaitStatus heartbeatType, long score) {
