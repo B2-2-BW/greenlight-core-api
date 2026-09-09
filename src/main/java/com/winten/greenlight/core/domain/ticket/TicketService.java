@@ -27,6 +27,8 @@ import java.time.Duration;
 @Service
 @RequiredArgsConstructor
 public class TicketService {
+    private static final Duration TICKET_TTL = Duration.ofMinutes(180);
+
     private final RedisKeyBuilder redisKeyBuilder;
     private final QueueRepository queueRepository;
     private final TicketRepository ticketRepository;
@@ -41,7 +43,7 @@ public class TicketService {
                 .flatMap(room -> {
                     var ticketId = generateNewTicketId();
                     // TODO room apikey 검증하기
-                    return roomRepository.findSiteOperationStatus(room.getSiteId())
+                    return roomService.findSiteOperationStatus(room.getSiteId())
                         .defaultIfEmpty(new SiteOperationStatus(true, false))
                         .flatMap(siteStatus -> {
                             if (!siteStatus.siteEnabled()) {
@@ -92,70 +94,33 @@ public class TicketService {
 
 
     private Mono<Ticket> processWaitingTicket(Room room, String ticketId, long score) {
+        String roomId = room.getRoomId();
+        long heartbeatScore = System.currentTimeMillis() - 3000;
+        long metricBucket = calculateMetricCounterBucket();
 
-        Mono<Boolean> waitingRequired = this.isWaitingRequired(room.getRoomId(), room.getCapacity());
-
-        return waitingRequired.flatMap(isWaitingRequired -> {
-            WaitStatus nextStatus = isWaitingRequired ? WaitStatus.WAITING : WaitStatus.ENTERED;
-
-            String roomId = room.getRoomId();
-            var ticket = Ticket.builder()
-                    .roomId(roomId)
-                    .ticketId(ticketId)
-                    .remainingUses(1)
-                    .timestamp(score)
-                    .build();
-
-            // ENTERED 인 경우 바로 token 세팅
-            String greenlightToken = jwtUtil.encode(ticketId, nextStatus);
-            ticket.setGreenlightToken(greenlightToken);
-
-            Mono<Long> saveTicket = this.saveTicket(ticket)
-                    .flatMap(_ -> Mono.zip(
-                                    roomRepository.addToRoomQueue(ticket, nextStatus),
-                                    this.createHeartbeatToNow(roomId, ticketId, nextStatus)
-                            )
-                            .map(tuple -> tuple.getT1()));
-
-            ticket.setWaitStatus(nextStatus);
-            return saveTicket
-                    .doOnSuccess(_ -> this.recordTicketIssueMetrics(roomId, ticketId, nextStatus))
-                    .thenReturn(ticket);
-        });
-    }
-
-    private void recordTicketIssueMetrics(String roomId, String ticketId, WaitStatus nextStatus) {
-        long targetBucket = this.calculateMetricCounterBucket();
-        Mono<Void> increaseEnteredMetric = (nextStatus == WaitStatus.ENTERED)
-                ? roomRepository.increaseMetricCount(roomId, nextStatus, targetBucket).then()
-                : Mono.empty();
-
-        Mono.when(
-                        roomRepository.increaseMetricCount(roomId, WaitStatus.WAITING, targetBucket),
-                        increaseEnteredMetric
+        return roomRepository.enqueueIssuedTicket(
+                        roomId,
+                        ticketId,
+                        room.getCapacity(),
+                        score,
+                        heartbeatScore,
+                        metricBucket
                 )
-                .subscribeOn(Schedulers.boundedElastic())
-                .subscribe(
-                        null,
-                        e -> log.error("[Async Log Error] failed for ticket: {}", ticketId, e)
-                );
+                .flatMap(nextStatus -> {
+                    var ticket = Ticket.builder()
+                            .roomId(roomId)
+                            .ticketId(ticketId)
+                            .remainingUses(1)
+                            .timestamp(score)
+                            .waitStatus(nextStatus)
+                            .greenlightToken(jwtUtil.encode(ticketId, nextStatus))
+                            .build();
+                    return saveTicket(ticket).thenReturn(ticket);
+                });
     }
 
     private Mono<Boolean> saveTicket(Ticket ticket) {
-        var ttl = Duration.ofMinutes(999);
-
-        return ticketRepository.saveTicket(ticketConverter.toEntity(ticket), ttl);
-    }
-
-    private Mono<Boolean> isWaitingRequired(String roomId, int roomCapacity) {
-        return roomRepository.countWaitingCustomersInRoom(roomId)
-                .flatMap(waiting -> {
-                    if (waiting > 0) {
-                        return Mono.just(true);
-                    }
-                    return roomRepository.countEnteredCustomersInRoom(roomId)
-                                    .map(enterCount -> (roomCapacity - enterCount) < 1);
-                });
+        return ticketRepository.saveTicket(ticketConverter.toEntity(ticket), TICKET_TTL);
     }
 
     public Mono<TicketVerification> verifyTicket(String ticketId, String hashParam) {
@@ -303,11 +268,6 @@ public class TicketService {
         return ticketRepository.findTicketById(ticketId)
                 .flatMap(ticket -> this.refreshHeartbeatToNow(ticket.getRoomId(), ticketId, heartbeatType))
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)));
-    }
-
-    private Mono<Boolean> createHeartbeatToNow(String roomId, String ticketId, WaitStatus heartbeatType) {
-        var score = System.currentTimeMillis() - 3000;
-        return roomRepository.createHeartbeatScore(roomId, ticketId, heartbeatType, score);
     }
 
     private Mono<Boolean> refreshHeartbeatToNow(String roomId, String ticketId, WaitStatus heartbeatType) {

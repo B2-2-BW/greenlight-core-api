@@ -85,7 +85,7 @@ public class CoreRedisConfig {
         var clientConfigBuilder = LettuceClientConfiguration.builder()
                 .clientResources(clientResources)
                 .clientOptions(clusterClientOptions)
-                .readFrom(ReadFrom.REPLICA_PREFERRED) // 읽기 작업을 슬레이브 노드에서 수행하도록 설정
+                .readFrom(ReadFrom.MASTER)
                 .commandTimeout(Duration.ofSeconds(3)); // 커맨드 타임아웃 설정
 
         if (properties.getSsl().isEnabled()) {
