@@ -28,6 +28,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -60,7 +61,7 @@ class TicketServiceTest {
     void issueWaitingTicketRejectsDisabledSiteBeforeRoomBypass() {
         var room = room(false);
         when(roomService.findRoomById("room-1")).thenReturn(Mono.just(room));
-        when(roomRepository.findSiteOperationStatus("site-1"))
+        when(roomService.findSiteOperationStatus("site-1"))
                 .thenReturn(Mono.just(new SiteOperationStatus(false, true)));
 
         StepVerifier.create(ticketService.issueWaitingTicket(new TicketIssueRequest("room-1", null), "api-key"))
@@ -73,14 +74,14 @@ class TicketServiceTest {
                 .verify();
 
         verify(jwtUtil, never()).encode(anyString(), any());
-        verify(roomRepository, never()).countWaitingCustomersInRoom(anyString());
+        verify(roomRepository, never()).enqueueIssuedTicket(anyString(), anyString(), anyInt(), anyLong(), anyLong(), anyLong());
     }
 
     @Test
     void issueWaitingTicketBypassesWhenSiteQueueIsDisabled() {
         var room = room(true);
         when(roomService.findRoomById("room-1")).thenReturn(Mono.just(room));
-        when(roomRepository.findSiteOperationStatus("site-1"))
+        when(roomService.findSiteOperationStatus("site-1"))
                 .thenReturn(Mono.just(new SiteOperationStatus(true, false)));
         when(jwtUtil.encode(anyString(), eq(WaitStatus.BYPASSED))).thenReturn("bypass-token");
 
@@ -91,29 +92,45 @@ class TicketServiceTest {
                 })
                 .verifyComplete();
 
-        verify(roomRepository, never()).countWaitingCustomersInRoom(anyString());
+        verify(roomRepository, never()).enqueueIssuedTicket(anyString(), anyString(), anyInt(), anyLong(), anyLong(), anyLong());
     }
 
     @Test
     void issueWaitingTicketContinuesNormallyWhenSiteAndQueueAreEnabled() {
         var room = room(true);
         when(roomService.findRoomById("room-1")).thenReturn(Mono.just(room));
-        when(roomRepository.findSiteOperationStatus("site-1"))
+        when(roomService.findSiteOperationStatus("site-1"))
                 .thenReturn(Mono.just(new SiteOperationStatus(true, true)));
-        when(roomRepository.countWaitingCustomersInRoom("room-1")).thenReturn(Mono.just(1L));
+        when(roomRepository.enqueueIssuedTicket(eq("room-1"), anyString(), eq(10), anyLong(), anyLong(), anyLong()))
+                .thenReturn(Mono.just(WaitStatus.WAITING));
         when(jwtUtil.encode(anyString(), eq(WaitStatus.WAITING))).thenReturn("waiting-token");
         when(ticketConverter.toEntity(any(Ticket.class))).thenReturn(new TicketEntity());
         when(ticketRepository.saveTicket(any(TicketEntity.class), any(Duration.class))).thenReturn(Mono.just(true));
-        when(roomRepository.addToRoomQueue(any(Ticket.class), eq(WaitStatus.WAITING))).thenReturn(Mono.just(0L));
-        when(roomRepository.createHeartbeatScore(eq("room-1"), anyString(), eq(WaitStatus.WAITING), anyLong()))
-                .thenReturn(Mono.just(true));
-        when(roomRepository.increaseMetricCount(eq("room-1"), eq(WaitStatus.WAITING), anyLong()))
-                .thenReturn(Mono.just(1L));
 
         StepVerifier.create(ticketService.issueWaitingTicket(new TicketIssueRequest("room-1", null), "api-key"))
                 .assertNext(ticket -> {
                     assertThat(ticket.getWaitStatus()).isEqualTo(WaitStatus.WAITING);
                     assertThat(ticket.getGreenlightToken()).isEqualTo("waiting-token");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void issueWaitingTicketEntersImmediatelyWhenLuaReturnsEntered() {
+        var room = room(true);
+        when(roomService.findRoomById("room-1")).thenReturn(Mono.just(room));
+        when(roomService.findSiteOperationStatus("site-1"))
+                .thenReturn(Mono.just(new SiteOperationStatus(true, true)));
+        when(roomRepository.enqueueIssuedTicket(eq("room-1"), anyString(), eq(10), anyLong(), anyLong(), anyLong()))
+                .thenReturn(Mono.just(WaitStatus.ENTERED));
+        when(jwtUtil.encode(anyString(), eq(WaitStatus.ENTERED))).thenReturn("entered-token");
+        when(ticketConverter.toEntity(any(Ticket.class))).thenReturn(new TicketEntity());
+        when(ticketRepository.saveTicket(any(TicketEntity.class), any(Duration.class))).thenReturn(Mono.just(true));
+
+        StepVerifier.create(ticketService.issueWaitingTicket(new TicketIssueRequest("room-1", null), "api-key"))
+                .assertNext(ticket -> {
+                    assertThat(ticket.getWaitStatus()).isEqualTo(WaitStatus.ENTERED);
+                    assertThat(ticket.getGreenlightToken()).isEqualTo("entered-token");
                 })
                 .verifyComplete();
     }
