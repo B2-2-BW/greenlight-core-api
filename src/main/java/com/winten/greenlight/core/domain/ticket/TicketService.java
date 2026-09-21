@@ -13,6 +13,7 @@ import com.winten.greenlight.core.domain.room.RoomService;
 import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
+import com.winten.greenlight.core.support.redis.RedisFailOpenGate;
 import com.winten.greenlight.core.support.util.JwtUtil;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +37,12 @@ public class TicketService {
     private final RoomRepository roomRepository;
     private final TicketConverter ticketConverter;
     private final JwtUtil jwtUtil;
+    private final RedisFailOpenGate redisFailOpenGate;
 
     public Mono<Ticket> issueWaitingTicket(TicketIssueRequest request, String apiKey) {
+        if (redisFailOpenGate.isOpen()) {
+            return Mono.just(bypassedTicket(request.getRoomId()));
+        }
         var score = System.currentTimeMillis();
         return roomService.findRoomById(request.getRoomId())
                 .flatMap(room -> {
@@ -57,6 +62,14 @@ public class TicketService {
                             }
                             return processWaitingTicket(room, ticketId, score);
                         });
+                })
+                .doOnSuccess(ignored -> redisFailOpenGate.onSuccess())
+                .onErrorResume(error -> {
+                    if (!isRedisFailure(error)) {
+                        return Mono.error(error);
+                    }
+                    redisFailOpenGate.onFailure();
+                    return Mono.just(bypassedTicket(request.getRoomId()));
                 });
     }
 
@@ -90,6 +103,33 @@ public class TicketService {
 
     private String generateNewTicketId() {
         return Ulid.fast().toLowerCase();
+    }
+
+    private Ticket bypassedTicket(String roomId) {
+        String ticketId = generateNewTicketId();
+        return Ticket.bypassed(roomId, ticketId, jwtUtil.encode(ticketId, WaitStatus.BYPASSED));
+    }
+
+    private TicketStatus bypassedStatus(String ticketId) {
+        return TicketStatus.builder()
+                .ticketId(ticketId)
+                .waitStatus(WaitStatus.BYPASSED)
+                .greenlightToken(jwtUtil.encode(ticketId, WaitStatus.BYPASSED))
+                .build();
+    }
+
+    static boolean isRedisFailure(Throwable error) {
+        for (Throwable current = error; current != null; current = current.getCause()) {
+            if (current instanceof CoreException coreException) {
+                return coreException.getErrorCode() == ErrorCode.REDIS_ERROR;
+            }
+            if (current instanceof io.lettuce.core.RedisException
+                    || current instanceof org.springframework.data.redis.RedisSystemException
+                    || current instanceof org.springframework.data.redis.RedisConnectionFailureException) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -171,6 +211,9 @@ public class TicketService {
     }
 
     public Mono<TicketStatus> getTicketStatus(String ticketId, String greenlightToken) {
+        if (redisFailOpenGate.isOpen()) {
+            return Mono.just(bypassedStatus(ticketId));
+        }
         return ticketRepository.findTicketById(ticketId)
                 .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)))
                 .flatMap(ticket ->  getTicketStatus(ticket)
@@ -181,7 +224,15 @@ public class TicketService {
                                 return this.refreshHeartbeatToNow(ticket.getRoomId(), ticketId, WaitStatus.WAITING)
                                         .thenReturn(status);
                             })
-                );
+                )
+                .doOnSuccess(ignored -> redisFailOpenGate.onSuccess())
+                .onErrorResume(error -> {
+                    if (!isRedisFailure(error)) {
+                        return Mono.error(error);
+                    }
+                    redisFailOpenGate.onFailure();
+                    return Mono.just(bypassedStatus(ticketId));
+                });
     }
 
     public long calculateRetryAfterFromPosition(long position) {
