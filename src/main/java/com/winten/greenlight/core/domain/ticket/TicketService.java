@@ -10,6 +10,7 @@ import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomRule;
 import com.winten.greenlight.core.domain.room.RoomService;
+import com.winten.greenlight.core.domain.scheduler.SchedulerCode;
 import com.winten.greenlight.core.domain.scheduler.SchedulerRunningStatusReader;
 import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.support.error.CoreException;
@@ -45,7 +46,7 @@ public class TicketService {
         if (redisFailOpenGate.isOpen()) {
             return Mono.just(bypassedTicket(request.getRoomId()));
         }
-        return schedulerRunningStatusReader.isEnabled(SchedulerRunningStatusReader.WAITING_TO_READY)
+        return schedulerRunningStatusReader.isEnabled(SchedulerCode.WAITING_TO_READY)
                 .flatMap(enabled -> {
                     if (!enabled) {
                         return Mono.just(bypassedTicket(request.getRoomId()));
@@ -233,7 +234,7 @@ public class TicketService {
         if (redisFailOpenGate.isOpen()) {
             return Mono.just(bypassedStatus(ticketId));
         }
-        return schedulerRunningStatusReader.isEnabled(SchedulerRunningStatusReader.WAITING_TO_READY)
+        return schedulerRunningStatusReader.isEnabled(SchedulerCode.WAITING_TO_READY)
                 .flatMap(enabled -> {
                     if (!enabled) {
                         return Mono.just(bypassedStatus(ticketId));

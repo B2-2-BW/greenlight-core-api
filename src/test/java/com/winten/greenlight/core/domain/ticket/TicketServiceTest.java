@@ -9,6 +9,7 @@ import com.winten.greenlight.core.domain.action.DefaultRuleType;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomService;
+import com.winten.greenlight.core.domain.scheduler.SchedulerCode;
 import com.winten.greenlight.core.domain.scheduler.SchedulerRunningStatusReader;
 import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.support.error.CoreException;
@@ -67,7 +68,7 @@ class TicketServiceTest {
 
     @BeforeEach
     void admissionOpen() {
-        lenient().when(schedulerRunningStatusReader.isEnabled(anyString())).thenReturn(Mono.just(true));
+        lenient().when(schedulerRunningStatusReader.isEnabled(any())).thenReturn(Mono.just(true));
     }
 
     @Test
@@ -211,7 +212,7 @@ class TicketServiceTest {
 
     @Test
     void issueWaitingTicketBypassesWhenEntranceSchedulerIsDisabled() {
-        when(schedulerRunningStatusReader.isEnabled(SchedulerRunningStatusReader.WAITING_TO_READY)).thenReturn(Mono.just(false));
+        when(schedulerRunningStatusReader.isEnabled(SchedulerCode.WAITING_TO_READY)).thenReturn(Mono.just(false));
         when(jwtUtil.encode(anyString(), eq(WaitStatus.BYPASSED))).thenReturn("bypass-token");
 
         StepVerifier.create(ticketService.issueWaitingTicket(new TicketIssueRequest("room-1", null), "api-key"))
@@ -223,7 +224,7 @@ class TicketServiceTest {
 
     @Test
     void getTicketStatusBypassesWhenEntranceSchedulerIsDisabled() {
-        when(schedulerRunningStatusReader.isEnabled(SchedulerRunningStatusReader.WAITING_TO_READY)).thenReturn(Mono.just(false));
+        when(schedulerRunningStatusReader.isEnabled(SchedulerCode.WAITING_TO_READY)).thenReturn(Mono.just(false));
         when(jwtUtil.encode("ticket-1", WaitStatus.BYPASSED)).thenReturn("bypass-token");
 
         StepVerifier.create(ticketService.getTicketStatus("ticket-1", null))
