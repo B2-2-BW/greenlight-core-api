@@ -10,6 +10,8 @@ import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomRule;
 import com.winten.greenlight.core.domain.room.RoomService;
+import com.winten.greenlight.core.domain.scheduler.SchedulerCode;
+import com.winten.greenlight.core.domain.scheduler.SchedulerRunningStatusReader;
 import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
@@ -38,11 +40,29 @@ public class TicketService {
     private final TicketConverter ticketConverter;
     private final JwtUtil jwtUtil;
     private final RedisFailOpenGate redisFailOpenGate;
+    private final SchedulerRunningStatusReader schedulerRunningStatusReader;
 
     public Mono<Ticket> issueWaitingTicket(TicketIssueRequest request, String apiKey) {
         if (redisFailOpenGate.isOpen()) {
             return Mono.just(bypassedTicket(request.getRoomId()));
         }
+        return schedulerRunningStatusReader.isEnabled(SchedulerCode.WAITING_TO_READY)
+                .flatMap(enabled -> {
+                    if (!enabled) {
+                        return Mono.just(bypassedTicket(request.getRoomId()));
+                    }
+                    return issueWhenEntranceSchedulerEnabled(request);
+                })
+                .onErrorResume(error -> {
+                    if (!isRedisFailure(error)) {
+                        return Mono.error(error);
+                    }
+                    redisFailOpenGate.onFailure();
+                    return Mono.just(bypassedTicket(request.getRoomId()));
+                });
+    }
+
+    private Mono<Ticket> issueWhenEntranceSchedulerEnabled(TicketIssueRequest request) {
         var score = System.currentTimeMillis();
         return roomService.findRoomById(request.getRoomId())
                 .flatMap(room -> {
@@ -214,17 +234,22 @@ public class TicketService {
         if (redisFailOpenGate.isOpen()) {
             return Mono.just(bypassedStatus(ticketId));
         }
-        return ticketRepository.findTicketById(ticketId)
-                .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)))
-                .flatMap(ticket ->  getTicketStatus(ticket)
-                            .flatMap(status -> {
-                                if (status.getWaitStatus() != WaitStatus.WAITING) {
-                                    return Mono.just(status);
-                                }
-                                return this.refreshHeartbeatToNow(ticket.getRoomId(), ticketId, WaitStatus.WAITING)
-                                        .thenReturn(status);
-                            })
-                )
+        return schedulerRunningStatusReader.isEnabled(SchedulerCode.WAITING_TO_READY)
+                .flatMap(enabled -> {
+                    if (!enabled) {
+                        return Mono.just(bypassedStatus(ticketId));
+                    }
+                    return ticketRepository.findTicketById(ticketId)
+                            .switchIfEmpty(Mono.error(new CoreException(ErrorCode.TICKET_NOT_FOUND, "존재하지 않는 Ticket ID입니다: " + ticketId)))
+                            .flatMap(ticket -> getTicketStatus(ticket)
+                                    .flatMap(status -> {
+                                        if (status.getWaitStatus() != WaitStatus.WAITING) {
+                                            return Mono.just(status);
+                                        }
+                                        return this.refreshHeartbeatToNow(ticket.getRoomId(), ticketId, WaitStatus.WAITING)
+                                                .thenReturn(status);
+                                    }));
+                })
                 .doOnSuccess(ignored -> redisFailOpenGate.onSuccess())
                 .onErrorResume(error -> {
                     if (!isRedisFailure(error)) {
