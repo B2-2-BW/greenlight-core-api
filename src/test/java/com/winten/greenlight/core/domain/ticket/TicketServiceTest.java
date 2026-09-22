@@ -9,12 +9,14 @@ import com.winten.greenlight.core.domain.action.DefaultRuleType;
 import com.winten.greenlight.core.domain.customer.WaitStatus;
 import com.winten.greenlight.core.domain.room.Room;
 import com.winten.greenlight.core.domain.room.RoomService;
+import com.winten.greenlight.core.domain.scheduler.SchedulerRunningStatusReader;
 import com.winten.greenlight.core.domain.site.SiteOperationStatus;
 import com.winten.greenlight.core.support.error.CoreException;
 import com.winten.greenlight.core.support.error.ErrorCode;
 import com.winten.greenlight.core.support.redis.RedisFailOpenGate;
 import com.winten.greenlight.core.support.util.JwtUtil;
 import com.winten.greenlight.core.support.util.RedisKeyBuilder;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -33,6 +35,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,9 +59,16 @@ class TicketServiceTest {
     private JwtUtil jwtUtil;
     @Mock
     private RedisFailOpenGate redisFailOpenGate;
+    @Mock
+    private SchedulerRunningStatusReader schedulerRunningStatusReader;
 
     @InjectMocks
     private TicketService ticketService;
+
+    @BeforeEach
+    void admissionOpen() {
+        lenient().when(schedulerRunningStatusReader.isEnabled(anyString())).thenReturn(Mono.just(true));
+    }
 
     @Test
     void issueWaitingTicketRejectsDisabledSiteBeforeRoomBypass() {
@@ -197,6 +207,33 @@ class TicketServiceTest {
                 .verifyComplete();
 
         verify(roomRepository, never()).increaseMetricCount(eq("room-1"), eq(WaitStatus.EXITED), anyLong());
+    }
+
+    @Test
+    void issueWaitingTicketBypassesWhenEntranceSchedulerIsDisabled() {
+        when(schedulerRunningStatusReader.isEnabled(SchedulerRunningStatusReader.WAITING_TO_READY)).thenReturn(Mono.just(false));
+        when(jwtUtil.encode(anyString(), eq(WaitStatus.BYPASSED))).thenReturn("bypass-token");
+
+        StepVerifier.create(ticketService.issueWaitingTicket(new TicketIssueRequest("room-1", null), "api-key"))
+                .assertNext(ticket -> assertThat(ticket.getWaitStatus()).isEqualTo(WaitStatus.BYPASSED))
+                .verifyComplete();
+
+        verify(roomService, never()).findRoomById(anyString());
+    }
+
+    @Test
+    void getTicketStatusBypassesWhenEntranceSchedulerIsDisabled() {
+        when(schedulerRunningStatusReader.isEnabled(SchedulerRunningStatusReader.WAITING_TO_READY)).thenReturn(Mono.just(false));
+        when(jwtUtil.encode("ticket-1", WaitStatus.BYPASSED)).thenReturn("bypass-token");
+
+        StepVerifier.create(ticketService.getTicketStatus("ticket-1", null))
+                .assertNext(status -> {
+                    assertThat(status.getWaitStatus()).isEqualTo(WaitStatus.BYPASSED);
+                    assertThat(status.getGreenlightToken()).isEqualTo("bypass-token");
+                })
+                .verifyComplete();
+
+        verify(ticketRepository, never()).findTicketById(anyString());
     }
 
     @Test
