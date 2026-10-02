@@ -99,6 +99,10 @@ public class RedisKeyBuilder {
         return prefix + ":site:" + siteId + ":meta";
     }
 
+    public String schedulerEnabled(String schedulerCode) {
+        return prefix + ":scheduler:" + schedulerCode + ":enabled";
+    }
+
     public String roomMetricLatest(String roomId) {
         return prefix + ":room:{" + roomId + "}:metric:latest";
     }
