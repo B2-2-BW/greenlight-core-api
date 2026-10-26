@@ -1,8 +1,6 @@
-FROM eclipse-temurin:25.0.2_10-jre-noble
+FROM amazoncorretto:25.0.5-al2023-headless
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && \
-    rm -rf /var/lib/apt/lists/*
+RUN dnf install -y tzdata && dnf clean all
 
 ENV TZ=Asia/Seoul
 

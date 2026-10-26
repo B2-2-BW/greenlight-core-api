@@ -2,9 +2,11 @@ package com.winten.greenlight.core;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import reactor.core.publisher.Hooks;
 
 @SpringBootApplication
+@EnableScheduling
 public class GreenlightCoreApiApplication {
 
     static void main(String[] args) {
