@@ -31,7 +31,6 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class TicketService {
     private static final Duration TICKET_TTL = Duration.ofMinutes(180);
-    private static final double defaultStaySeconds = 30;
 
     private final RedisKeyBuilder redisKeyBuilder;
     private final QueueRepository queueRepository;
@@ -284,7 +283,8 @@ public class TicketService {
                                         .map(totalCount -> {
                                             long position = rank + 1; // 0-based -> 1-based
                                             long behindCount = Math.max(totalCount - position, 0);
-                                            long estimatedWaitTime = calculateEstimatedWaitTime(metric.getRoomCapacity(), position, metric.getPredictedExitRate());
+                                            // TODO: 예상 대기 시간 계산 로직 적용
+                                            long estimatedWaitTime = calculateEstimatedWaitTime(metric.getRoomCapacity(), position, metric.getRecentlyExited());
 
                                             return TicketStatus.builder()
                                                     .ticketId(ticketId)
@@ -320,27 +320,20 @@ public class TicketService {
 
     }
 
-    /** 예상대기시간 계산
-     * schduler 계산된 예상 퇴장인원 수치를 바탕으로 측정
-     * 예상 대기시간(초) = 대기인원 / 초당 퇴장인원 수 (예측치)
-     * @see greenlight-scheduler RoomRepository.calculateRoomMetric
-     */
-    private long calculateEstimatedWaitTime(long capacity, long position, Double predictedExitRate) {
+    private long calculateEstimatedWaitTime(long capacity, long position, long recentlyExited) {
         if (capacity <= 0) { // capacity가 0보다 작으면 입장불가
             return -1;
         }
-
-        // totalActive가 capacity 보다 작으면 바로입장 가능 (즉시 진입)
+        // 1. totalActive가 capacity 보다 작으면 바로입장 가능 (즉시 진입)
         long remainder = position - capacity;
         if (remainder <= 0) {
             return 0;
         }
-        // 예상 퇴장인원 수가 없다면 기본값 적용
-        if (predictedExitRate == null || !Double.isFinite(predictedExitRate) || predictedExitRate <= 0) {
-            predictedExitRate = capacity / defaultStaySeconds;
+        if (recentlyExited < capacity * 3) { // 2. recentlyExited가 capacity의 30% 미만이면 평균 30초 머무는 것으로 계산
+            // recentlyExited는 3분간 나간 전체 사용자 수. 30초 머무는 상황이므로 capacity가 1일 때 3분동안 6명이 나감.
+            recentlyExited = Math.round(capacity * 2.1 + recentlyExited * 0.3);
         }
-
-        return (long) Math.ceil(remainder / predictedExitRate);
+        return Math.max((remainder * 180) / recentlyExited, 1);
     }
 
 
