@@ -14,12 +14,12 @@ public class RoomMetric {
     private int roomCapacity;
     private long totalWaiting;
     private long totalActive;
-    private long recentlyExited;
+    private Double predictedExitRate; // 예측한 초당 퇴장 인원. 집계 전에는 null
     private long waitingCount;
     private long enteredCount;
     private long exitedCount;
     private double waitingRate;
     private double enteredRate;
     private double exitedRate;
-    private long estimatedWaitTime;
+    private long estimatedWaitTime; // 예상 대기시간(초). 예측할 수 없으면 -1
 }

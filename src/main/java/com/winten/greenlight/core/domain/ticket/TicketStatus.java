@@ -20,7 +20,7 @@ public class TicketStatus {
     private Long position;
     private Long behindCount;
     private Long queueSize;
-    private Long estimatedWaitTime;
+    private Long estimatedWaitTime; // 예상 대기시간(초). 예측할 수 없으면 -1
     @JsonIgnore
     private long retryAfter;
 }
