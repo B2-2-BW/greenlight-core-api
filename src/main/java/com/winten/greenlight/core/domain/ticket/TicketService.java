@@ -284,7 +284,12 @@ public class TicketService {
                                             long position = rank + 1; // 0-based -> 1-based
                                             long behindCount = Math.max(totalCount - position, 0);
                                             // TODO: 예상 대기 시간 계산 로직 적용
-                                            long estimatedWaitTime = calculateEstimatedWaitTime(metric.getRoomCapacity(), position, metric.getRecentlyExited());
+                                            long estimatedWaitTime = calculateEstimatedWaitTime(
+                                                    metric.getRoomCapacity(),
+                                                    metric.getTotalActive(),
+                                                    position,
+                                                    metric.getRecentlyExited()
+                                            );
 
                                             return TicketStatus.builder()
                                                     .ticketId(ticketId)
@@ -320,12 +325,12 @@ public class TicketService {
 
     }
 
-    private long calculateEstimatedWaitTime(long capacity, long position, long recentlyExited) {
+    private long calculateEstimatedWaitTime(long capacity, long totalActive, long position, long recentlyExited) {
         if (capacity <= 0) { // capacity가 0보다 작으면 입장불가
             return -1;
         }
         // 1. totalActive가 capacity 보다 작으면 바로입장 가능 (즉시 진입)
-        long remainder = position - capacity;
+        long remainder = position - (capacity - totalActive);
         if (remainder <= 0) {
             return 0;
         }
